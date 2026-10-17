@@ -167,6 +167,12 @@ wss.on('connection', ws => {
       ws.send(JSON.stringify({ t: 'hello', id, code, W, H, walls: WALLS, hides: HIDES, exit: EXIT }));
     } else if (room && me) {
       if (m.t === 'in') { me.dx = clamp(+m.dx || 0, -1, 1); me.dy = clamp(+m.dy || 0, -1, 1); me.sprint = !!m.sp; me.act = !!m.a; }
+      if (m.t === 'chat') {
+        const now = Date.now(); if (now - (me.lt || 0) < 500) return; me.lt = now;
+        const text = String(m.m || '').replace(/\s+/g, ' ').trim().slice(0, 120); if (!text) return;
+        const out = JSON.stringify({ t: 'chat', id: me.id, n: me.name, c: me.c, m: text });
+        for (const p of Object.values(room.players)) if (p.ws.readyState === 1) p.ws.send(out);
+      }
       if (m.t === 'start' && room.host === me.id && room.state !== 'play') { room.state = 'play'; reset(room); }
     }
   });
