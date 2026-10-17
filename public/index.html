@@ -47,6 +47,7 @@
   .m{padding:2px 0;transition:opacity 1s}.m.old{opacity:0}#chat.open .m{opacity:1}
   #ci{margin-top:6px;padding:8px;font-size:14px;background:rgba(21,14,10,.85);text-align:left}
   #cbtn{position:fixed;top:12px;right:64px;width:44px;height:44px;border-radius:50%;margin:0;padding:0;z-index:10;font-size:20px;background:#241912;border:1px solid #5a3d28}
+  #pad{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,4,.92);z-index:11}#pin{font-size:34px;letter-spacing:12px}
 </style>
 </head>
 <body>
@@ -55,7 +56,7 @@
 <canvas id="mm" width="144" height="90" class="hide"></canvas>
 <div id="hud" class="hide"><div id="keys"></div><div id="pls"></div></div>
 <div id="msg"></div><div id="hint"></div>
-<div id="help">WASD move &middot; mouse look (click to capture) &middot; SHIFT sprint (loud!) &middot; E hide in wardrobe / revive friends &middot; ENTER chat</div>
+<div id="help">WASD move &middot; mouse look (click to capture) &middot; SHIFT sprint (loud!) &middot; E hide in wardrobe / revive friends &middot; ENTER chat &middot; F crossbow</div>
 <button id="gear" aria-label="Ustawienia">&#9881;</button>
 <div id="set" class="hide"><div class="card">
   <h1 style="font-size:28px">Ustawienia</h1>
@@ -69,7 +70,7 @@
 <div id="chat"><div id="log"></div><input id="ci" class="hide" maxlength="120" placeholder="Message (Enter = send, Esc = close)" autocomplete="off"></div>
 <button id="cbtn" aria-label="Chat">&#128172;</button>
 <div id="stick"><div id="knob"></div></div>
-<div id="btns"><button id="bRun">RUN</button><button id="bAct">E</button></div>
+<div id="btns"><button id="bRun">RUN</button><button id="bAct">E</button><button id="bSh">&#127993;</button></div>
 
 <div id="ov"><div class="card">
   <div id="join">
@@ -88,22 +89,23 @@
   <div id="err"></div>
 </div></div>
 
+<div id="pad" class="hide"><div class="card"><h1 style="font-size:26px">Padlock</h1><div class="sub">Enter the 4-digit code</div><input id="pin" type="tel" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="off"><button id="pinOk">Open</button><button id="pinX" style="background:#150e0a">Cancel</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 const $ = id => document.getElementById(id), U = 50; // 50 px of server map = 1 3D unit
 const cvs = $('c');
 const cfg = Object.assign({ mode: 'auto', sound: true }, JSON.parse(localStorage.getItem('gcfg') || '{}'));
-let ws, myId, map, S = null, pos = {}, gpos = null, gface = 0, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false;
+let ws, myId, map, S = null, pos = {}, gpos = null, gface = 0, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false, tSh = false;
 let yaw = -Math.PI / 2, pitch = 0, actx, beat = 0, lastSt = '', built = false;
 $('name').value = localStorage.getItem('gname') || '';
 const p0 = new URLSearchParams(location.search).get('room'); if (p0) $('code').value = p0;
 
 // ---------- three.js setup ----------
 const R = new THREE.WebGLRenderer({ canvas: cvs, antialias: true });
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050302); scene.fog = new THREE.FogExp2(0x050302, 0.085);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050302); scene.fog = new THREE.FogExp2(0x050302, 0.14);
 const cam = new THREE.PerspectiveCamera(75, 1, 0.05, 100); cam.rotation.order = 'YXZ';
-scene.add(new THREE.AmbientLight(0x2a2018, 0.9));
-cam.add(new THREE.PointLight(0xffe2b0, 1.3, 18, 1.2)); scene.add(cam);
+scene.add(new THREE.AmbientLight(0x1a1410, 0.4));
+cam.add(new THREE.PointLight(0xffe2b0, 1.1, 14, 1.3)); scene.add(cam);
 
 function applyCfg() {
   const phone = cfg.mode === 'phone' || (cfg.mode === 'auto' && matchMedia('(pointer:coarse)').matches);
@@ -131,11 +133,69 @@ const floorT = tex(128, 128, g => { for (let i = 0; i < 8; i++) { g.fillStyle = 
 const wallT = tex(64, 64, g => { g.fillStyle = '#5b3a2e'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#48291f'; for (let x = 0; x < 64; x += 16) g.fillRect(x, 0, 6, 64); g.fillStyle = '#2b1a12'; g.fillRect(0, 54, 64, 10); }, 1, 1);
 const std = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c }, o));
 
+const gold = { emissive: 0x553300 };
+const bx = (w, hh, d, c, x, y, z, o) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), std(c, o)); m.position.set(x, y, z); return m; };
+const ROOMS = [['KITCHEN', [20,20,500,480], 'tile'], ['BATHROOM', [20,520,500,460], 'btile'], ['LIVING ROOM', [540,20,520,960], 'wood'], ['BEDROOM', [1080,20,500,480], 'carpet'], ['BASEMENT', [1080,520,500,460], 'conc']];
+const spk = (g, a, b, n) => { for (let i = 0; i < n; i++) { g.fillStyle = Math.random() < .5 ? a : b; g.fillRect(Math.random() * 64, Math.random() * 64, 3, 3); } };
+const FD = {
+  wood: g => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#3e2a1a' : '#523724'; g.fillRect(0, i * 16, 128, 16); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, i * 16 + 15, 128, 1); } },
+  tile: g => { g.fillStyle = '#c9c3b1'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#3d3a33'; g.fillRect(0, 0, 32, 32); g.fillRect(32, 32, 32, 32); },
+  btile: g => { g.fillStyle = '#8fb8c4'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#5f8693'; g.fillRect(0, 31, 64, 2); g.fillRect(31, 0, 2, 64); },
+  carpet: g => { g.fillStyle = '#4a1f2a'; g.fillRect(0, 0, 64, 64); spk(g, '#3b1720', '#5a2a36', 300); },
+  conc: g => { g.fillStyle = '#34363a'; g.fillRect(0, 0, 64, 64); spk(g, '#2a2c30', '#44474c', 200); }
+};
+const PROPS = [[0xb0bec5,270,45,360,50,1],[0xeceff1,470,55,60,60,2.3],[0x6d4c41,260,250,140,90,.9],[0xf5f5f5,110,900,150,90,.7],[0xfafafa,440,950,45,55,.7],[0xe0e0e0,440,545,60,30,.9],
+  [0x37474f,640,330,50,170,.7],[0x5d4037,800,600,120,70,.5],[0x5d4a6a,1500,400,150,110,.6],[0x3e2723,1565,720,30,220,2.2],[0x5d4037,1130,940,50,50,1],[0x5d4037,1190,950,50,50,1]];
+const objs = {};
+function mkCab() { const g = new THREE.Group(), p = new THREE.Group(); p.position.set(-.55, .55, .25);
+  p.add(bx(1.06, 1, .05, 0x8a6a44, .53, 0, .02), bx(.08, .08, .08, 0xffd54f, .9, 0, .08, gold));
+  g.add(bx(1.1, 1.1, .5, 0x5a4128, 0, .55, 0), p); g.userData.piv = p; return g; }
+function mkWard() { const g = new THREE.Group();
+  g.add(bx(1.2, 2.4, .7, 0x4e342e, 0, 1.2, 0), bx(1.3, .12, .8, 0x3e2723, 0, 2.46, 0), bx(.03, 2.1, .05, 0x2b1a12, 0, 1.2, .36));
+  for (const s of [-1, 1]) g.add(bx(.54, 2.1, .04, 0x6d4c41, s * .29, 1.2, .36), bx(.04, .3, .06, 0xffd54f, s * .08, 1.2, .4, gold)); return g; }
+function mkCase() { const g = new THREE.Group(), gl = bx(1, 1.1, .7, 0x88ccff, 0, 1.5, 0, { transparent: true, opacity: .28 });
+  g.add(bx(1, .95, .7, 0x3e2723, 0, .47, 0), gl, bx(.8, .08, .08, 0x222222, 0, 1.4, 0), bx(.08, .08, .6, 0x5d4037, 0, 1.4, 0), bx(.7, .05, .05, 0x222222, 0, 1.5, .2));
+  g.userData.glass = gl; return g; }
+function mkSafe() { const g = new THREE.Group(), p = new THREE.Group(); p.position.set(-.5, .55, .4);
+  p.add(bx(1, 1, .08, 0x607d8b, .5, 0, 0), bx(.2, .2, .1, 0xb0bec5, .5, 0, .07));
+  g.add(bx(1.1, 1.1, .8, 0x37474f, 0, .55, 0), p); g.userData.piv = p; return g; }
+function mkFuse() { const g = new THREE.Group(), w = new THREE.Group();
+  w.add(bx(.04, .6, .04, 0xd32f2f, -.12, .8, .12), bx(.04, .6, .04, 0x1976d2, .12, .8, .12));
+  g.add(bx(.5, .7, .18, 0x546e7a, 0, 1.3, 0), bx(.5, .1, .19, 0xfbc02d, 0, 1.55, 0), w); g.userData.wires = w; return g; }
+function mkPad() { const g = new THREE.Group(), sh = new THREE.Mesh(new THREE.TorusGeometry(.12, .03, 6, 12, Math.PI), std(0xcccccc));
+  sh.position.set(0, 1.37, 0); g.add(bx(.4, 3, 2.4, 0x37474f, 0, 1.5, 0), bx(.7, .3, .25, 0xffd54f, 0, 1.2, 0, gold), sh); return g; }
+function mkFront() { const g = new THREE.Group();
+  sparkMat = new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0 });
+  const sp = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.8, .02), sparkMat); sp.position.set(0, 1.45, -.22);
+  g.add(bx(2, 2.9, .4, 0x5d3a1a, 0, 1.45, 0), bx(.12, .12, .12, 0xffd54f, .7, 1.4, -.25, gold), sp); return g; }
+const HT = { cab: 'open', case: 'smash glass (needs hammer)', pad: 'enter padlock code', safe: 'open safe (needs safe key)', fuse: 'cut cables (needs pliers)', front: 'open the front door' };
+function hintT(me) {
+  const dr = S.dr || {}, o = S.o || [], t = map.ints.find(t => Math.hypot(t.x - me.x, t.y - me.y) < 60); if (!t) return '';
+  const done = t.k === 'pad' ? dr.base : t.k === 'fuse' ? !S.w : t.k === 'front' ? dr.front : o.includes(t.id);
+  return done ? '' : HT[t.k];
+}
+function updObjs() {
+  const dr = S.dr || {}, o = S.o || [];
+  for (const id in objs) {
+    const { g, t } = objs[id];
+    if (t.k === 'cab' || t.k === 'safe') g.userData.piv.rotation.y = o.includes(id) ? -1.7 : 0;
+    else if (t.k === 'case') g.userData.glass.visible = !o.includes('case');
+    else if (t.k === 'pad') g.visible = !dr.base;
+    else if (t.k === 'front') g.visible = !dr.front;
+    else if (t.k === 'fuse') g.userData.wires.visible = !!S.w;
+  }
+}
 function buildWorld() {
-  built = true; const mw = map.W / U, mh = map.H / U;
+  built = true; const mw = map.W / U, mh = map.H / U, face = (x, y) => Math.atan2(mw / 2 - x / U, mh / 2 - y / U);
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), std(0xffffff, { map: floorT }));
-  fl.rotation.x = -Math.PI / 2; fl.position.set(mw / 2, 0, mh / 2); scene.add(fl);
+  fl.rotation.x = -Math.PI / 2; fl.position.set(mw / 2, -0.01, mh / 2); scene.add(fl);
   const ce = new THREE.Mesh(fl.geometry, std(0x1a120d)); ce.rotation.x = Math.PI / 2; ce.position.set(mw / 2, 3, mh / 2); scene.add(ce);
+  for (const [n, r, k] of ROOMS) {
+    const w = r[2] / U, hh = r[3] / U, sz = k === 'wood' ? 128 : 64, cx = (r[0] + r[2] / 2) / U, cz = (r[1] + r[3] / 2) / U;
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), std(0xffffff, { map: tex(sz, sz, FD[k], w / 2, hh / 2) }));
+    f.rotation.x = -Math.PI / 2; f.position.set(cx, 0, cz); scene.add(f);
+    const s = label(n); s.scale.set(4, 1, 1); s.position.set(cx, 2.6, cz); scene.add(s);
+  }
   const wm = std(0xffffff, { map: wallT });
   for (const w of map.walls) {
     const sx = w[2] / U, sz = w[3] / U, g = new THREE.BoxGeometry(sx, 3, sz), uv = g.attributes.uv;
@@ -143,17 +203,19 @@ function buildWorld() {
     for (let i = 0; i < uv.count; i++) { const s = sc[i >> 2]; uv.setXY(i, uv.getX(i) * s[0] / 3, uv.getY(i) * s[1] / 3); }
     const m = new THREE.Mesh(g, wm); m.position.set((w[0] + w[2] / 2) / U, 1.5, (w[1] + w[3] / 2) / U); scene.add(m);
   }
-  for (const h of map.hides) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.2, 0.9), std(0x5d4037, { emissive: 0x1a0d08 }));
-    m.position.set(h[0] / U, 1.1, h[1] / U); scene.add(m);
+  for (const p of PROPS) scene.add(bx(p[3] / U, p[5], p[4] / U, p[0], p[1] / U, p[5] / 2, p[2] / U));
+  for (const h of map.hides) { const g = mkWard(); g.position.set(h[0] / U, 0, h[1] / U); g.rotation.y = face(h[0], h[1]); scene.add(g); }
+  const mk = { cab: mkCab, case: mkCase, safe: mkSafe, fuse: mkFuse, pad: mkPad, front: mkFront };
+  for (const t of map.ints) {
+    const g = mk[t.k](); g.position.set(t.x / U, 0, (t.k === 'front' ? 990 : t.y) / U);
+    if (t.k !== 'pad' && t.k !== 'front') g.rotation.y = face(t.x, t.y);
+    scene.add(g); objs[t.id] = { g, t };
   }
-  const ex = map.exit;
-  exitMat = new THREE.MeshBasicMaterial({ color: 0xb3261e, transparent: true, opacity: 0.35, fog: false, depthWrite: false });
-  const eb = new THREE.Mesh(new THREE.BoxGeometry((ex[2] - 20) / U, 3, ex[3] / U), exitMat);
-  eb.position.set((ex[0] + (ex[2] - 20) / 2) / U, 1.5, (ex[1] + ex[3] / 2) / U); scene.add(eb);
+  exitMat = new THREE.MeshBasicMaterial({ color: 0x66ff99, transparent: true, opacity: 0.35, fog: false, depthWrite: false });
+  const eb = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), exitMat); eb.position.set(790 / U, 1.5, 20.6); scene.add(eb);
   gm = mkGranny(); scene.add(gm);
 }
-let exitMat, gm, gEyes, gGlow;
+let exitMat, gm, gEyes, gGlow, sparkMat;
 function mkGranny() {
   const g = new THREE.Group();
   const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 1.2, 10), std(0x6a1b9a)); dress.position.y = 0.6;
@@ -219,6 +281,7 @@ $('go').onclick = () => {
     if (m.t === 'hello') { myId = m.id; map = m; buildWorld(); $('join').classList.add('hide'); $('lobby').classList.remove('hide'); $('rc').textContent = m.code; $('err').textContent = ''; }
     if (m.t === 's') onState(m);
     if (m.t === 'chat') addChat(m);
+    if (m.t === 'ui') { document.exitPointerLock && document.exitPointerLock(); keys = {}; $('pad').classList.remove('hide'); pin.focus(); }
   };
 };
 $('start').onclick = () => { yaw = -Math.PI / 2; pitch = 0; ws.send(JSON.stringify({ t: 'start' })); };
@@ -226,7 +289,9 @@ const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&
 
 function onState(m) {
   S = m; syncKeys();
-  exitMat.color.set(m.keys >= m.total ? 0x4caf50 : 0xb3261e);
+  updObjs();
+  if (m.ev === 'shot') sfx(200, .15, 'square', .2);
+  if (m.ev === 'hit') { sfx(150, .3, 'sawtooth', .25); sfx(500, .2, 'square', .15); }
   if (m.ev === 'key') { sfx(880, .15, 'triangle'); setTimeout(() => sfx(1320, .25, 'triangle'), 120); }
   const playing = m.st === 'play';
   $('ov').classList.toggle('hide', playing); $('hud').classList.toggle('hide', !playing); $('mm').classList.toggle('hide', !playing);
@@ -240,7 +305,9 @@ function onState(m) {
   }
   if (m.st !== lastSt && (m.st === 'won' || m.st === 'lost')) sfx(m.st === 'won' ? 660 : 80, 1, m.st === 'won' ? 'triangle' : 'sawtooth', .25);
   lastSt = m.st;
-  $('keys').innerHTML = `&#128273; Keys ${m.keys}/${m.total}`;
+  const I = m.inv || {};
+  $('keys').innerHTML = [I.code ? '&#128221; Code ' + I.code : '', I.pliers ? '&#9986; Pliers' : '', I.hammer ? '&#128296; Hammer' : '', I.safekey ? '&#128477; Safe key' : '',
+    I.xbow || I.bolts ? '&#127993; ' + (I.xbow ? 'Crossbow ' : '') + 'bolts x' + (I.bolts || 0) : '', I.master ? '&#128273; MASTER KEY' : ''].filter(Boolean).join(' &middot; ') || 'Search cabinets with E';
   $('pls').innerHTML = m.p.map(p => `<div class="pl ${p.d ? 'down' : ''}"><span class="dot" style="background:${p.c}"></span>${esc(p.n)}${p.d ? ' (down ' + Math.round(p.rv / 3 * 100) + '%)' : p.h ? ' (hiding)' : ''}</div>`).join('');
   $('msg').textContent = m.msg || '';
 }
@@ -271,7 +338,7 @@ stick.addEventListener('pointerdown', e => { sid = e.pointerId; stick.setPointer
 stick.addEventListener('pointermove', e => { if (e.pointerId === sid) smove(e); });
 const send = e => { if (e.pointerId !== sid) return; sid = null; touch = { x: 0, y: 0 }; knob.style.left = knob.style.top = '40px'; };
 stick.addEventListener('pointerup', send); stick.addEventListener('pointercancel', send);
-for (const [id, set] of [['bRun', v => tRun = v], ['bAct', v => tAct = v]]) {
+for (const [id, set] of [['bRun', v => tRun = v], ['bAct', v => tAct = v], ['bSh', v => tSh = v]]) {
   const el = $(id);
   el.addEventListener('pointerdown', e => { set(true); e.preventDefault(); });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, () => set(false)));
@@ -280,7 +347,7 @@ setInterval(() => {
   if (!ws || ws.readyState !== 1 || !S || S.st !== 'play') return;
   const f = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0) - touch.y;
   const s = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + touch.x, sy = Math.sin(yaw), cy = Math.cos(yaw);
-  ws.send(JSON.stringify({ t: 'in', dx: s * cy - f * sy, dy: -s * sy - f * cy, sp: keys.shift || tRun, a: keys.e || tAct }));
+  ws.send(JSON.stringify({ t: 'in', dx: s * cy - f * sy, dy: -s * sy - f * cy, sp: keys.shift || tRun, a: keys.e || tAct, sh: keys.f || tSh, yw: yaw }));
 }, 33);
 
 // ---------- chat ----------
@@ -304,13 +371,20 @@ function addChat(m) {
   if (m.id !== myId) sfx(700, .08, 'triangle', .08);
 }
 
+const pin = $('pin');
+function closePad() { pin.value = ''; $('pad').classList.add('hide'); pin.blur(); }
+pin.addEventListener('input', () => pin.value = pin.value.replace(/\D/g, ''));
+$('pinOk').onclick = () => { if (pin.value.length === 4) ws.send(JSON.stringify({ t: 'code', c: pin.value })); closePad(); };
+$('pinX').onclick = closePad;
+pin.addEventListener('keydown', e => { if (e.key === 'Enter') $('pinOk').click(); if (e.key === 'Escape') closePad(); });
+
 // ---------- minimap ----------
 const mg = $('mm').getContext('2d');
 function drawMM(me) {
   mg.clearRect(0, 0, 144, 90); mg.fillStyle = 'rgba(0,0,0,.6)'; mg.fillRect(0, 0, 144, 90);
   const k = 144 / map.W; mg.fillStyle = '#8d6e63';
   for (const w of map.walls) mg.fillRect(w[0] * k, w[1] * k, Math.max(1.5, w[2] * k), Math.max(1.5, w[3] * k));
-  const ex = map.exit; mg.fillStyle = S.keys >= S.total ? '#4caf50' : '#b3261e'; mg.fillRect(ex[0] * k, ex[1] * k, ex[2] * k, ex[3] * k);
+  const ex = map.exit; mg.fillStyle = (S.dr && S.dr.front) ? '#4caf50' : '#b3261e'; mg.fillRect(ex[0] * k, ex[1] * k, ex[2] * k, ex[3] * k);
   mg.fillStyle = '#ffd54f';
   for (const i of S.it) if (Math.hypot(i.x - me.x, i.y - me.y) < 350) { mg.beginPath(); mg.arc(i.x * k, i.y * k, 2, 0, 7); mg.fill(); }
   for (const p of S.p) { const q = pos[p.id]; mg.fillStyle = p.d ? '#777' : p.c; mg.beginPath(); mg.arc(q.x * k, q.y * k, p.id === myId ? 3.5 : 2.5, 0, 7); mg.fill(); }
@@ -327,6 +401,7 @@ function frame(now) {
   for (const p of S.p) { const q = pos[p.id] || (pos[p.id] = { x: p.x, y: p.y }); q.x += (p.x - q.x) * a; q.y += (p.y - q.y) * a; }
   if (S.g) {
     if (!gpos) gpos = { x: S.g.x, y: S.g.y };
+    if (S.g.a || Math.hypot(S.g.x - gpos.x, S.g.y - gpos.y) > 300) { gpos.x = S.g.x; gpos.y = S.g.y; }
     const ox = gpos.x, oy = gpos.y; gpos.x += (S.g.x - gpos.x) * a; gpos.y += (S.g.y - gpos.y) * a;
     if (Math.hypot(gpos.x - ox, gpos.y - oy) > 0.2) gface = Math.atan2(gpos.x - ox, gpos.y - oy);
   }
@@ -342,7 +417,7 @@ function frame(now) {
   }
   for (const id in pm) if (!S.p.some(p => p.id === id)) { scene.remove(pm[id]); delete pm[id]; }
   if (gpos) {
-    const chase = S.g.m === 'chase';
+    const chase = S.g.m === 'chase' && !S.g.a; gm.visible = !S.g.a;
     gm.position.set(gpos.x / U, 0, gpos.y / U); gm.rotation.y = gface;
     gEyes.color.set(chase ? 0xff1010 : 0xffffff); gGlow.intensity = chase ? 1.6 : 0;
   }
@@ -352,17 +427,19 @@ function frame(now) {
   let hint = '';
   if (!mine.d) {
     if (mine.h) hint = 'E: leave wardrobe';
+    else if (hintT(me)) hint = 'E: ' + hintT(me);
     else if (map.hides.some(h => Math.hypot(h[0] - me.x, h[1] - me.y) < 45)) hint = 'E: hide';
     else if (S.p.some(p => p.d && p.id !== myId && Math.hypot(pos[p.id].x - me.x, pos[p.id].y - me.y) < 50)) hint = 'Hold E: revive';
   }
   $('hint').textContent = hint;
-  if (gpos && !mine.d) {
+  if (gpos && !mine.d && !S.g.a) {
     const d = Math.hypot(gpos.x - me.x, gpos.y - me.y);
     $('vig').classList.toggle('danger', d < 260);
     beat -= dt;
     if (d < 450 && beat <= 0) { sfx(55, .2, 'sine', .4); setTimeout(() => sfx(50, .2, 'sine', .3), 150); beat = 0.3 + d / 500; }
   }
   if (S.st === 'play') drawMM(me);
+  if (sparkMat) sparkMat.opacity = (S.w && !(S.dr || {}).front) ? (Math.random() < .35 ? .7 : .08) : 0;
   R.render(scene, cam);
 }
 requestAnimationFrame(frame);
