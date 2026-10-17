@@ -3,51 +3,59 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Granny Co-op: Escape Together</title>
+<title>Granny Co-op 3D</title>
 <style>
   :root{--blood:#b3261e;--paper:#e8d9b5;--ink:#120c08}
   *{box-sizing:border-box;margin:0;user-select:none;-webkit-user-select:none}
-  html,body{height:100%;background:var(--ink);overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:var(--paper)}
-  canvas{position:fixed;inset:0;width:100%;height:100%}
-  .vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.75));animation:flick 4s infinite}
-  .vig.danger{box-shadow:inset 0 0 120px rgba(179,38,30,.7)}
+  html,body{height:100%;background:var(--ink);overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:var(--paper);touch-action:none}
+  canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.8));animation:flick 4s infinite}
+  .vig.danger{box-shadow:inset 0 0 140px rgba(179,38,30,.8)}
   @keyframes flick{0%,100%{opacity:1}48%{opacity:1}50%{opacity:.85}52%{opacity:1}}
   #hud{position:fixed;top:12px;left:12px;font-size:18px;text-shadow:0 2px 4px #000;pointer-events:none}
   #hud .pl{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:14px}
   #hud .dot{width:12px;height:12px;border-radius:50%}
-  #hud .down{opacity:.5;text-decoration:line-through}
-  #msg{position:fixed;bottom:70px;width:100%;text-align:center;font-size:20px;text-shadow:0 2px 6px #000;pointer-events:none;transition:opacity .4s}
+  #hud .down{opacity:.6}
+  #mm{position:fixed;top:64px;right:12px;border:1px solid #5a3d28;pointer-events:none}
+  #msg{position:fixed;bottom:70px;width:100%;text-align:center;font-size:20px;text-shadow:0 2px 6px #000;pointer-events:none}
+  #hint{position:fixed;bottom:110px;width:100%;text-align:center;font-size:18px;color:#ffd54f;text-shadow:0 2px 6px #000;pointer-events:none}
   #help{position:fixed;bottom:12px;width:100%;text-align:center;font-size:12px;opacity:.55;pointer-events:none}
   #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,4,.88);z-index:5}
   .card{width:min(92vw,420px);padding:28px;background:#241912;border:2px solid #5a3d28;border-radius:6px;text-align:center;box-shadow:0 0 60px #000}
   h1{font-size:38px;color:var(--blood);letter-spacing:2px;text-shadow:0 0 12px rgba(179,38,30,.6);margin-bottom:4px}
   .sub{opacity:.7;margin-bottom:18px;font-style:italic}
-  input{width:100%;padding:12px;margin:6px 0;background:#150e0a;border:1px solid #5a3d28;color:var(--paper);font:inherit;font-size:16px;text-align:center;border-radius:4px;text-transform:none;user-select:text;-webkit-user-select:text}
-  button{width:100%;padding:12px;margin-top:8px;background:var(--blood);color:#fff;border:0;border-radius:4px;font:inherit;font-size:18px;cursor:pointer;transition:transform .1s,filter .2s}
-  button:hover{filter:brightness(1.2);transform:scale(1.02)}
+  input{width:100%;padding:12px;margin:6px 0;background:#150e0a;border:1px solid #5a3d28;color:var(--paper);font:inherit;font-size:16px;text-align:center;border-radius:4px;user-select:text;-webkit-user-select:text}
+  button{width:100%;padding:12px;margin-top:8px;background:var(--blood);color:#fff;border:0;border-radius:4px;font:inherit;font-size:18px;cursor:pointer}
+  button:hover{filter:brightness(1.2)}
   .code{font-size:34px;letter-spacing:8px;color:#ffd54f;margin:8px 0}
   #err{color:#ff8a80;min-height:20px;margin-top:8px}
   .hide{display:none!important}
-  #stick{position:fixed;left:24px;bottom:24px;width:120px;height:120px;border-radius:50%;border:2px solid rgba(232,217,181,.3);display:none}
+  #stick{position:fixed;left:24px;bottom:24px;width:120px;height:120px;border-radius:50%;border:2px solid rgba(232,217,181,.3);display:none;touch-action:none}
   #knob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:rgba(232,217,181,.4)}
   #btns{position:fixed;right:20px;bottom:24px;display:none;gap:12px}
-  #btns button{width:70px;height:70px;border-radius:50%;margin:0;font-size:14px;opacity:.7}
+  #btns button{width:70px;height:70px;border-radius:50%;margin:0;font-size:14px;opacity:.7;touch-action:none}
   body.phone #stick{display:block}body.phone #btns{display:flex}body.phone #help{display:none}
-  html,body{touch-action:none}
-  #stick,#btns button{touch-action:none}
   #gear{position:fixed;top:12px;right:12px;width:44px;height:44px;border-radius:50%;margin:0;padding:0;z-index:7;font-size:22px;background:#241912;border:1px solid #5a3d28}
   #set{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,4,.92);z-index:9}
   .seg{display:flex;gap:6px}
   .seg button{margin:0;background:#150e0a;border:1px solid #5a3d28;font-size:15px;padding:10px 4px}
   .seg button.on{background:var(--blood);border-color:var(--blood)}
+  #chat{position:fixed;left:12px;bottom:50px;width:min(60vw,340px);z-index:10;pointer-events:none;font-size:14px;text-shadow:0 1px 3px #000}
+  body.phone #chat{bottom:160px}
+  #chat.open{pointer-events:auto}
+  #log{max-height:150px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+  .m{padding:2px 0;transition:opacity 1s}.m.old{opacity:0}#chat.open .m{opacity:1}
+  #ci{margin-top:6px;padding:8px;font-size:14px;background:rgba(21,14,10,.85);text-align:left}
+  #cbtn{position:fixed;top:12px;right:64px;width:44px;height:44px;border-radius:50%;margin:0;padding:0;z-index:10;font-size:20px;background:#241912;border:1px solid #5a3d28}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div class="vig" id="vig"></div>
+<canvas id="mm" width="144" height="90" class="hide"></canvas>
 <div id="hud" class="hide"><div id="keys"></div><div id="pls"></div></div>
-<div id="msg"></div>
-<div id="help">WASD / Arrows move &middot; SHIFT sprint (loud!) &middot; E hide in wardrobes / revive friends</div>
+<div id="msg"></div><div id="hint"></div>
+<div id="help">WASD move &middot; mouse look (click to capture) &middot; SHIFT sprint (loud!) &middot; E hide in wardrobe / revive friends &middot; ENTER chat</div>
 <button id="gear" aria-label="Ustawienia">&#9881;</button>
 <div id="set" class="hide"><div class="card">
   <h1 style="font-size:28px">Ustawienia</h1>
@@ -58,12 +66,14 @@
   <button id="fs" style="background:#150e0a;border:1px solid #5a3d28;margin-top:14px">Pe&#322;ny ekran</button>
   <button id="setClose">Zamknij</button>
 </div></div>
+<div id="chat"><div id="log"></div><input id="ci" class="hide" maxlength="120" placeholder="Message (Enter = send, Esc = close)" autocomplete="off"></div>
+<button id="cbtn" aria-label="Chat">&#128172;</button>
 <div id="stick"><div id="knob"></div></div>
 <div id="btns"><button id="bRun">RUN</button><button id="bAct">E</button></div>
 
 <div id="ov"><div class="card">
   <div id="join">
-    <h1>GRANNY</h1><div class="sub">co-op escape &middot; up to 4 players</div>
+    <h1>GRANNY 3D</h1><div class="sub">co-op escape &middot; up to 4 players</div>
     <input id="name" placeholder="Your name" maxlength="12">
     <input id="code" placeholder="Room code (blank = new room)" maxlength="6">
     <button id="go">Enter the house</button>
@@ -78,33 +88,113 @@
   <div id="err"></div>
 </div></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const $ = id => document.getElementById(id);
-const cv = $('c'), ctx = cv.getContext('2d');
-const dark = document.createElement('canvas'), dx = dark.getContext('2d');
+const $ = id => document.getElementById(id), U = 50; // 50 px of server map = 1 3D unit
+const cvs = $('c');
 const cfg = Object.assign({ mode: 'auto', sound: true }, JSON.parse(localStorage.getItem('gcfg') || '{}'));
-let Z = 1;
+let ws, myId, map, S = null, pos = {}, gpos = null, gface = 0, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false;
+let yaw = -Math.PI / 2, pitch = 0, actx, beat = 0, lastSt = '', built = false;
+$('name').value = localStorage.getItem('gname') || '';
+const p0 = new URLSearchParams(location.search).get('room'); if (p0) $('code').value = p0;
+
+// ---------- three.js setup ----------
+const R = new THREE.WebGLRenderer({ canvas: cvs, antialias: true });
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x050302); scene.fog = new THREE.FogExp2(0x050302, 0.085);
+const cam = new THREE.PerspectiveCamera(75, 1, 0.05, 100); cam.rotation.order = 'YXZ';
+scene.add(new THREE.AmbientLight(0x2a2018, 0.9));
+cam.add(new THREE.PointLight(0xffe2b0, 1.3, 18, 1.2)); scene.add(cam);
+
 function applyCfg() {
   const phone = cfg.mode === 'phone' || (cfg.mode === 'auto' && matchMedia('(pointer:coarse)').matches);
   document.body.classList.toggle('phone', phone);
-  Z = phone ? Math.max(.55, Math.min(.9, innerWidth / 1000)) : 1;
   localStorage.setItem('gcfg', JSON.stringify(cfg));
   document.querySelectorAll('#segMode button').forEach(b => b.classList.toggle('on', b.dataset.m === cfg.mode));
   document.querySelectorAll('#segSnd button').forEach(b => b.classList.toggle('on', (b.dataset.s === '1') === cfg.sound));
 }
-function resize() { cv.width = dark.width = innerWidth; cv.height = dark.height = innerHeight; applyCfg(); }
+function resize() {
+  R.setPixelRatio(Math.min(devicePixelRatio, 1.5)); R.setSize(innerWidth, innerHeight);
+  cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); applyCfg();
+}
 addEventListener('resize', resize); resize();
-$('gear').onclick = () => $('set').classList.remove('hide');
+$('gear').onclick = () => { document.exitPointerLock && document.exitPointerLock(); $('set').classList.remove('hide'); };
 $('setClose').onclick = () => $('set').classList.add('hide');
 document.querySelectorAll('#segMode button').forEach(b => b.onclick = () => { cfg.mode = b.dataset.m; applyCfg(); });
 document.querySelectorAll('#segSnd button').forEach(b => b.onclick = () => { cfg.sound = b.dataset.s === '1'; applyCfg(); });
-$('fs').onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : (d.requestFullscreen && d.requestFullscreen())); };
+$('fs').onclick = () => { const d = document.documentElement; document.fullscreenElement ? document.exitFullscreen() : d.requestFullscreen && d.requestFullscreen(); };
 
-let ws, myId, map, S = null, pos = {}, gpos = null, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false;
-let actx, beat = 0, lastSt = '';
-$('name').value = localStorage.getItem('gname') || '';
-const p0 = new URLSearchParams(location.search).get('room'); if (p0) $('code').value = p0;
+function tex(w, h, draw, rx, ry) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'));
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t;
+}
+const floorT = tex(128, 128, g => { for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#3e2a1a' : '#523724'; g.fillRect(0, i * 16, 128, 16); g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, i * 16 + 15, 128, 1); } }, 16, 10);
+const wallT = tex(64, 64, g => { g.fillStyle = '#5b3a2e'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#48291f'; for (let x = 0; x < 64; x += 16) g.fillRect(x, 0, 6, 64); g.fillStyle = '#2b1a12'; g.fillRect(0, 54, 64, 10); }, 1, 1);
+const std = (c, o = {}) => new THREE.MeshStandardMaterial(Object.assign({ color: c }, o));
 
+function buildWorld() {
+  built = true; const mw = map.W / U, mh = map.H / U;
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), std(0xffffff, { map: floorT }));
+  fl.rotation.x = -Math.PI / 2; fl.position.set(mw / 2, 0, mh / 2); scene.add(fl);
+  const ce = new THREE.Mesh(fl.geometry, std(0x1a120d)); ce.rotation.x = Math.PI / 2; ce.position.set(mw / 2, 3, mh / 2); scene.add(ce);
+  const wm = std(0xffffff, { map: wallT });
+  for (const w of map.walls) {
+    const sx = w[2] / U, sz = w[3] / U, g = new THREE.BoxGeometry(sx, 3, sz), uv = g.attributes.uv;
+    const sc = [[sz, 3], [sz, 3], [sx, sz], [sx, sz], [sx, 3], [sx, 3]];
+    for (let i = 0; i < uv.count; i++) { const s = sc[i >> 2]; uv.setXY(i, uv.getX(i) * s[0] / 3, uv.getY(i) * s[1] / 3); }
+    const m = new THREE.Mesh(g, wm); m.position.set((w[0] + w[2] / 2) / U, 1.5, (w[1] + w[3] / 2) / U); scene.add(m);
+  }
+  for (const h of map.hides) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.2, 0.9), std(0x5d4037, { emissive: 0x1a0d08 }));
+    m.position.set(h[0] / U, 1.1, h[1] / U); scene.add(m);
+  }
+  const ex = map.exit;
+  exitMat = new THREE.MeshBasicMaterial({ color: 0xb3261e, transparent: true, opacity: 0.35, fog: false, depthWrite: false });
+  const eb = new THREE.Mesh(new THREE.BoxGeometry((ex[2] - 20) / U, 3, ex[3] / U), exitMat);
+  eb.position.set((ex[0] + (ex[2] - 20) / 2) / U, 1.5, (ex[1] + ex[3] / 2) / U); scene.add(eb);
+  gm = mkGranny(); scene.add(gm);
+}
+let exitMat, gm, gEyes, gGlow;
+function mkGranny() {
+  const g = new THREE.Group();
+  const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 1.2, 10), std(0x6a1b9a)); dress.position.y = 0.6;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), std(0xcfd8dc)); head.position.y = 1.45;
+  const bun = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), std(0xeeeeee)); bun.position.set(0, 1.64, -0.1);
+  gEyes = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 6), gEyes), e2 = e1.clone();
+  e1.position.set(-0.09, 1.5, 0.21); e2.position.set(0.09, 1.5, 0.21);
+  const cane = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1, 0.05), std(0x8d6e63)); cane.position.set(0.38, 0.5, 0.25); cane.rotation.z = 0.2;
+  gGlow = new THREE.PointLight(0xff2020, 0, 9, 1.5); gGlow.position.y = 1.4;
+  g.add(dress, head, bun, e1, e2, cane, gGlow); return g;
+}
+const pm = {};
+function label(text) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64; const g = c.getContext('2d');
+  g.font = 'bold 36px Georgia'; g.textAlign = 'center'; g.fillStyle = '#fff'; g.strokeStyle = '#000'; g.lineWidth = 6;
+  g.strokeText(text, 128, 44); g.fillText(text, 128, 44);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); s.scale.set(1.6, 0.4, 1); s.position.y = 1.95; return s;
+}
+function mkPlayer(p) {
+  const g = new THREE.Group(), m = std(new THREE.Color(p.c), { emissive: new THREE.Color(p.c), emissiveIntensity: 0.25 });
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.1, 10), m); b.position.y = 0.55;
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), m); h.position.y = 1.3;
+  g.add(b, h, label(p.n)); scene.add(g); return g;
+}
+const kM = {};
+function syncKeys() {
+  const ids = new Set();
+  for (const k of S.it) {
+    const id = k.x + ',' + k.y; ids.add(id);
+    if (!kM[id]) {
+      const m = std(0xffd54f, { emissive: 0xffb300, emissiveIntensity: 1.3 }), g = new THREE.Group();
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.05, 8, 16), m); ring.position.y = 0.2;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), m); st.position.y = -0.15;
+      g.add(ring, st); g.position.set(k.x / U, 1, k.y / U); scene.add(g); kM[id] = g;
+    }
+  }
+  for (const id in kM) if (!ids.has(id)) { scene.remove(kM[id]); delete kM[id]; }
+}
+
+// ---------- audio ----------
 function sfx(f, d, type = 'sine', v = 0.15) {
   if (!cfg.sound) return;
   try {
@@ -116,6 +206,7 @@ function sfx(f, d, type = 'sine', v = 0.15) {
   } catch {}
 }
 
+// ---------- networking / UI ----------
 $('go').onclick = () => {
   const name = $('name').value.trim() || 'Player'; localStorage.setItem('gname', name);
   sfx(120, .3, 'sawtooth');
@@ -125,43 +216,57 @@ $('go').onclick = () => {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.t === 'err') { $('err').textContent = m.m; ws.close(); }
-    if (m.t === 'hello') { myId = m.id; map = m; $('join').classList.add('hide'); $('lobby').classList.remove('hide'); $('rc').textContent = m.code; $('err').textContent = ''; }
+    if (m.t === 'hello') { myId = m.id; map = m; buildWorld(); $('join').classList.add('hide'); $('lobby').classList.remove('hide'); $('rc').textContent = m.code; $('err').textContent = ''; }
     if (m.t === 's') onState(m);
+    if (m.t === 'chat') addChat(m);
   };
 };
-$('start').onclick = () => ws.send(JSON.stringify({ t: 'start' }));
+$('start').onclick = () => { yaw = -Math.PI / 2; pitch = 0; ws.send(JSON.stringify({ t: 'start' })); };
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function onState(m) {
-  S = m;
+  S = m; syncKeys();
+  exitMat.color.set(m.keys >= m.total ? 0x4caf50 : 0xb3261e);
   if (m.ev === 'key') { sfx(880, .15, 'triangle'); setTimeout(() => sfx(1320, .25, 'triangle'), 120); }
   const playing = m.st === 'play';
-  $('ov').classList.toggle('hide', playing); $('hud').classList.toggle('hide', !playing);
+  $('ov').classList.toggle('hide', playing); $('hud').classList.toggle('hide', !playing); $('mm').classList.toggle('hide', !playing);
   if (!playing) {
+    document.exitPointerLock && document.exitPointerLock();
     $('ttl').textContent = m.st === 'won' ? 'YOU ESCAPED!' : m.st === 'lost' ? 'GAME OVER' : 'LOBBY';
     $('lp').innerHTML = m.p.map(p => `<div><span style="color:${p.c}">&#9679;</span> ${esc(p.n)}${p.id === m.host ? ' &#128081;' : ''}</div>`).join('');
     const host = m.host === myId;
     $('start').classList.toggle('hide', !host); $('wait').classList.toggle('hide', host);
     $('start').textContent = m.st === 'lobby' ? 'Start game' : 'Play again';
   }
-  if (m.st !== lastSt && (m.st === 'won' || m.st === 'lost')) { sfx(m.st === 'won' ? 660 : 80, 1, m.st === 'won' ? 'triangle' : 'sawtooth', .25); }
+  if (m.st !== lastSt && (m.st === 'won' || m.st === 'lost')) sfx(m.st === 'won' ? 660 : 80, 1, m.st === 'won' ? 'triangle' : 'sawtooth', .25);
   lastSt = m.st;
   $('keys').innerHTML = `&#128273; Keys ${m.keys}/${m.total}`;
-  $('pls').innerHTML = m.p.map(p => `<div class="pl ${p.d ? 'down' : ''}"><span class="dot" style="background:${p.c}"></span>${esc(p.n)}${p.d ? ' (down)' : p.h ? ' (hiding)' : ''}</div>`).join('');
+  $('pls').innerHTML = m.p.map(p => `<div class="pl ${p.d ? 'down' : ''}"><span class="dot" style="background:${p.c}"></span>${esc(p.n)}${p.d ? ' (down ' + Math.round(p.rv / 3 * 100) + '%)' : p.h ? ' (hiding)' : ''}</div>`).join('');
   $('msg').textContent = m.msg || '';
 }
-function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-// ---- input ----
-addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') e.preventDefault(); });
+// ---------- input ----------
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'Enter') { openChat(); e.preventDefault(); return; }
+  keys[e.key.toLowerCase()] = true; if (e.key === ' ' || e.key.startsWith('Arrow')) e.preventDefault(); });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-const stick = $('stick'), knob = $('knob');
+const isPhone = () => document.body.classList.contains('phone');
+function look(dx, dy) { yaw -= dx; pitch = Math.max(-1.2, Math.min(1.2, pitch - dy)); }
+cvs.addEventListener('click', () => { if (S && S.st === 'play' && !isPhone() && !document.pointerLockElement && cvs.requestPointerLock) cvs.requestPointerLock(); });
+document.addEventListener('mousemove', e => { if (document.pointerLockElement === cvs) look(e.movementX * .0025, e.movementY * .0025); });
+let lid = null, lx = 0, ly = 0;
+cvs.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && !isPhone()) return; lid = e.pointerId; lx = e.clientX; ly = e.clientY; cvs.setPointerCapture(lid); });
+cvs.addEventListener('pointermove', e => { if (e.pointerId !== lid) return; look((e.clientX - lx) * .005, (e.clientY - ly) * .005); lx = e.clientX; ly = e.clientY; });
+['pointerup', 'pointercancel'].forEach(t => cvs.addEventListener(t, e => { if (e.pointerId === lid) lid = null; }));
+
+const stick = $('stick'), knob = $('knob'); let sid = null;
 function smove(e) {
   const r = stick.getBoundingClientRect();
   let x = (e.clientX - r.left - 60) / 60, y = (e.clientY - r.top - 60) / 60, m = Math.hypot(x, y);
   if (m > 1) { x /= m; y /= m; }
   touch = { x, y }; knob.style.left = 40 + x * 40 + 'px'; knob.style.top = 40 + y * 40 + 'px';
 }
-let sid = null;
 stick.addEventListener('pointerdown', e => { sid = e.pointerId; stick.setPointerCapture(sid); smove(e); e.preventDefault(); });
 stick.addEventListener('pointermove', e => { if (e.pointerId === sid) smove(e); });
 const send = e => { if (e.pointerId !== sid) return; sid = null; touch = { x: 0, y: 0 }; knob.style.left = knob.style.top = '40px'; };
@@ -173,90 +278,92 @@ for (const [id, set] of [['bRun', v => tRun = v], ['bAct', v => tAct = v]]) {
 }
 setInterval(() => {
   if (!ws || ws.readyState !== 1 || !S || S.st !== 'play') return;
-  let x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + touch.x;
-  let y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0) + touch.y;
-  ws.send(JSON.stringify({ t: 'in', dx: x, dy: y, sp: keys.shift || tRun, a: keys.e || tAct }));
+  const f = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0) - touch.y;
+  const s = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + touch.x, sy = Math.sin(yaw), cy = Math.cos(yaw);
+  ws.send(JSON.stringify({ t: 'in', dx: s * cy - f * sy, dy: -s * sy - f * cy, sp: keys.shift || tRun, a: keys.e || tAct }));
 }, 33);
 
-// ---- render ----
+// ---------- chat ----------
+const chat = $('chat'), ci = $('ci'), logEl = $('log');
+function openChat() {
+  if (!ws || ws.readyState !== 1) return;
+  document.exitPointerLock && document.exitPointerLock(); keys = {};
+  chat.classList.add('open'); ci.classList.remove('hide'); ci.focus();
+}
+function closeChat() { ci.value = ''; ci.classList.add('hide'); ci.blur(); chat.classList.remove('open'); }
+ci.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const t = ci.value.trim(); if (t && ws.readyState === 1) ws.send(JSON.stringify({ t: 'chat', m: t })); closeChat(); }
+  else if (e.key === 'Escape') closeChat();
+});
+$('cbtn').onclick = () => chat.classList.contains('open') ? closeChat() : openChat();
+function addChat(m) {
+  const d = document.createElement('div'); d.className = 'm';
+  d.innerHTML = `<b style="color:${m.c}">${esc(m.n)}:</b> ${esc(m.m)}`;
+  logEl.appendChild(d); while (logEl.children.length > 30) logEl.firstChild.remove();
+  setTimeout(() => d.classList.add('old'), 9000);
+  if (m.id !== myId) sfx(700, .08, 'triangle', .08);
+}
+
+// ---------- minimap ----------
+const mg = $('mm').getContext('2d');
+function drawMM(me) {
+  mg.clearRect(0, 0, 144, 90); mg.fillStyle = 'rgba(0,0,0,.6)'; mg.fillRect(0, 0, 144, 90);
+  const k = 144 / map.W; mg.fillStyle = '#8d6e63';
+  for (const w of map.walls) mg.fillRect(w[0] * k, w[1] * k, Math.max(1.5, w[2] * k), Math.max(1.5, w[3] * k));
+  const ex = map.exit; mg.fillStyle = S.keys >= S.total ? '#4caf50' : '#b3261e'; mg.fillRect(ex[0] * k, ex[1] * k, ex[2] * k, ex[3] * k);
+  mg.fillStyle = '#ffd54f';
+  for (const i of S.it) if (Math.hypot(i.x - me.x, i.y - me.y) < 350) { mg.beginPath(); mg.arc(i.x * k, i.y * k, 2, 0, 7); mg.fill(); }
+  for (const p of S.p) { const q = pos[p.id]; mg.fillStyle = p.d ? '#777' : p.c; mg.beginPath(); mg.arc(q.x * k, q.y * k, p.id === myId ? 3.5 : 2.5, 0, 7); mg.fill(); }
+  mg.strokeStyle = '#fff'; mg.beginPath(); mg.moveTo(me.x * k, me.y * k); mg.lineTo(me.x * k - Math.sin(yaw) * 9, me.y * k - Math.cos(yaw) * 9); mg.stroke();
+}
+
+// ---------- main loop ----------
 let last = performance.now();
 function frame(now) {
-  const dt = Math.min(0.1, (now - last) / 1000); last = now;
   requestAnimationFrame(frame);
-  ctx.fillStyle = '#0a0604'; ctx.fillRect(0, 0, cv.width, cv.height);
-  if (!S || !map) return;
-  for (const p of S.p) {
-    const q = pos[p.id] || (pos[p.id] = { x: p.x, y: p.y });
-    q.x += (p.x - q.x) * Math.min(1, dt * 15); q.y += (p.y - q.y) * Math.min(1, dt * 15);
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (!S || !map || !built) { R.render(scene, cam); return; }
+  const a = Math.min(1, dt * 15);
+  for (const p of S.p) { const q = pos[p.id] || (pos[p.id] = { x: p.x, y: p.y }); q.x += (p.x - q.x) * a; q.y += (p.y - q.y) * a; }
+  if (S.g) {
+    if (!gpos) gpos = { x: S.g.x, y: S.g.y };
+    const ox = gpos.x, oy = gpos.y; gpos.x += (S.g.x - gpos.x) * a; gpos.y += (S.g.y - gpos.y) * a;
+    if (Math.hypot(gpos.x - ox, gpos.y - oy) > 0.2) gface = Math.atan2(gpos.x - ox, gpos.y - oy);
   }
-  if (S.g) { gpos = gpos || { x: S.g.x, y: S.g.y }; gpos.x += (S.g.x - gpos.x) * Math.min(1, dt * 15); gpos.y += (S.g.y - gpos.y) * Math.min(1, dt * 15); }
-  const me = pos[myId], mine = S.p.find(p => p.id === myId);
-  if (!me) return;
-  const camX = me.x - cv.width / 2 / Z, camY = me.y - cv.height / 2 / Z;
+  const me = pos[myId], mine = S.p.find(p => p.id === myId); if (!me || !mine) return;
+  if (keys.arrowleft) yaw += 2.2 * dt; if (keys.arrowright) yaw -= 2.2 * dt;
+  cam.position.set(me.x / U, mine.d ? 0.35 : mine.h ? 1.1 : 1.6, me.y / U);
+  cam.rotation.set(mine.d ? -0.5 : pitch, yaw, mine.d ? 0.4 : 0);
 
-  ctx.save(); ctx.scale(Z, Z); ctx.translate(-camX, -camY);
-  // floor
-  ctx.fillStyle = '#3a2819'; ctx.fillRect(0, 0, map.W, map.H);
-  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.beginPath();
-  for (let x = 0; x < map.W; x += 50) { ctx.moveTo(x, 0); ctx.lineTo(x, map.H); }
-  ctx.stroke();
-  // rooms tint
-  ctx.fillStyle = 'rgba(80,30,30,.18)'; ctx.fillRect(540, 20, 520, 960);
-  // exit
-  const open = S.keys >= S.total, ex = map.exit;
-  ctx.fillStyle = open ? 'rgba(76,175,80,.55)' : 'rgba(179,38,30,.45)'; ctx.fillRect(ex[0], ex[1], ex[2] - 20, ex[3]);
-  ctx.fillStyle = '#fff'; ctx.font = '14px Georgia'; ctx.fillText(open ? 'EXIT' : 'LOCKED', ex[0] + 8, ex[1] + 55);
-  // hides
-  for (const h of map.hides) { ctx.fillStyle = '#5d4037'; ctx.fillRect(h[0] - 18, h[1] - 24, 36, 48); ctx.strokeStyle = '#2b1b12'; ctx.strokeRect(h[0] - 18, h[1] - 24, 36, 48); ctx.beginPath(); ctx.moveTo(h[0], h[1] - 24); ctx.lineTo(h[0], h[1] + 24); ctx.stroke(); }
-  // keys
-  const tt = now / 300;
-  for (const k of S.it) {
-    ctx.shadowColor = '#ffd54f'; ctx.shadowBlur = 16 + Math.sin(tt) * 6;
-    ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(k.x, k.y - 3 + Math.sin(tt) * 2, 8, 0, 7); ctx.fill();
-    ctx.fillRect(k.x - 2, k.y + 4, 4, 12); ctx.shadowBlur = 0;
-  }
-  // walls
-  for (const w of map.walls) { ctx.fillStyle = '#1c130e'; ctx.fillRect(w[0], w[1], w[2], w[3]); ctx.strokeStyle = '#6d4c33'; ctx.lineWidth = 2; ctx.strokeRect(w[0], w[1], w[2], w[3]); }
-  // players
   for (const p of S.p) {
-    const q = pos[p.id]; if (p.h && p.id !== myId) continue;
-    ctx.globalAlpha = p.h ? .4 : 1;
-    ctx.fillStyle = p.d ? '#555' : p.c; ctx.beginPath(); ctx.arc(q.x, q.y, 12, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
-    ctx.fillStyle = '#fff'; ctx.font = '12px Georgia'; ctx.textAlign = 'center'; ctx.fillText(p.n + (p.d ? ' \u2620' : ''), q.x, q.y - 20);
-    if (p.d && p.rv > 0) { ctx.fillStyle = '#4caf50'; ctx.fillRect(q.x - 18, q.y + 18, 36 * p.rv / 3, 5); ctx.strokeStyle = '#fff'; ctx.strokeRect(q.x - 18, q.y + 18, 36, 5); }
+    if (p.id === myId) continue;
+    const g = pm[p.id] || (pm[p.id] = mkPlayer(p)), q = pos[p.id];
+    g.visible = !p.h; g.position.set(q.x / U, p.d ? 0.25 : 0, q.y / U); g.rotation.x = p.d ? -Math.PI / 2 : 0;
   }
-  // granny
+  for (const id in pm) if (!S.p.some(p => p.id === id)) { scene.remove(pm[id]); delete pm[id]; }
   if (gpos) {
     const chase = S.g.m === 'chase';
-    ctx.shadowColor = chase ? '#f00' : '#000'; ctx.shadowBlur = chase ? 20 : 0;
-    ctx.fillStyle = '#9e9e9e'; ctx.beginPath(); ctx.arc(gpos.x, gpos.y, 16, 0, 7); ctx.fill();
-    ctx.fillStyle = '#6a1b9a'; ctx.beginPath(); ctx.arc(gpos.x, gpos.y + 4, 13, 0.2, Math.PI - 0.2); ctx.fill();
-    ctx.shadowBlur = 0; ctx.fillStyle = chase ? '#f44336' : '#fff';
-    ctx.fillRect(gpos.x - 7, gpos.y - 5, 4, 4); ctx.fillRect(gpos.x + 3, gpos.y - 5, 4, 4);
-    ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(gpos.x + 14, gpos.y + 8); ctx.lineTo(gpos.x + 26, gpos.y - 12); ctx.stroke();
+    gm.position.set(gpos.x / U, 0, gpos.y / U); gm.rotation.y = gface;
+    gEyes.color.set(chase ? 0xff1010 : 0xffffff); gGlow.intensity = chase ? 1.6 : 0;
   }
-  ctx.restore();
+  for (const id in kM) { kM[id].rotation.y += dt * 2; kM[id].position.y = 1 + Math.sin(now / 300) * 0.08; }
 
-  // darkness + flashlights
-  dx.globalCompositeOperation = 'source-over'; dx.clearRect(0, 0, dark.width, dark.height);
-  dx.fillStyle = 'rgba(0,0,0,.965)'; dx.fillRect(0, 0, dark.width, dark.height);
-  dx.globalCompositeOperation = 'destination-out';
-  for (const p of S.p) {
-    if (p.d) continue; const q = pos[p.id], R = (p.id === myId ? 250 : 130) * Z, sx = (q.x - camX) * Z, sy = (q.y - camY) * Z;
-    const g = dx.createRadialGradient(sx, sy, 10, sx, sy, R);
-    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-    dx.fillStyle = g; dx.beginPath(); dx.arc(sx, sy, R, 0, 7); dx.fill();
+  // hints, danger, heartbeat
+  let hint = '';
+  if (!mine.d) {
+    if (mine.h) hint = 'E: leave wardrobe';
+    else if (map.hides.some(h => Math.hypot(h[0] - me.x, h[1] - me.y) < 45)) hint = 'E: hide';
+    else if (S.p.some(p => p.d && p.id !== myId && Math.hypot(pos[p.id].x - me.x, pos[p.id].y - me.y) < 50)) hint = 'Hold E: revive';
   }
-  ctx.drawImage(dark, 0, 0);
-
-  // heartbeat + danger vignette
-  if (gpos && mine && !mine.d) {
+  $('hint').textContent = hint;
+  if (gpos && !mine.d) {
     const d = Math.hypot(gpos.x - me.x, gpos.y - me.y);
     $('vig').classList.toggle('danger', d < 260);
     beat -= dt;
     if (d < 450 && beat <= 0) { sfx(55, .2, 'sine', .4); setTimeout(() => sfx(50, .2, 'sine', .3), 150); beat = 0.3 + d / 500; }
   }
+  if (S.st === 'play') drawMM(me);
+  R.render(scene, cam);
 }
 requestAnimationFrame(frame);
 </script>
