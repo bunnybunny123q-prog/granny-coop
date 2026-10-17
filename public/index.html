@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Granny Co-op: Escape Together</title>
+<style>
+  :root{--blood:#b3261e;--paper:#e8d9b5;--ink:#120c08}
+  *{box-sizing:border-box;margin:0;user-select:none;-webkit-user-select:none}
+  html,body{height:100%;background:var(--ink);overflow:hidden;font-family:Georgia,'Times New Roman',serif;color:var(--paper)}
+  canvas{position:fixed;inset:0;width:100%;height:100%}
+  .vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.75));animation:flick 4s infinite}
+  .vig.danger{box-shadow:inset 0 0 120px rgba(179,38,30,.7)}
+  @keyframes flick{0%,100%{opacity:1}48%{opacity:1}50%{opacity:.85}52%{opacity:1}}
+  #hud{position:fixed;top:12px;left:12px;font-size:18px;text-shadow:0 2px 4px #000;pointer-events:none}
+  #hud .pl{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:14px}
+  #hud .dot{width:12px;height:12px;border-radius:50%}
+  #hud .down{opacity:.5;text-decoration:line-through}
+  #msg{position:fixed;bottom:70px;width:100%;text-align:center;font-size:20px;text-shadow:0 2px 6px #000;pointer-events:none;transition:opacity .4s}
+  #help{position:fixed;bottom:12px;width:100%;text-align:center;font-size:12px;opacity:.55;pointer-events:none}
+  #ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,4,.88);z-index:5}
+  .card{width:min(92vw,420px);padding:28px;background:#241912;border:2px solid #5a3d28;border-radius:6px;text-align:center;box-shadow:0 0 60px #000}
+  h1{font-size:38px;color:var(--blood);letter-spacing:2px;text-shadow:0 0 12px rgba(179,38,30,.6);margin-bottom:4px}
+  .sub{opacity:.7;margin-bottom:18px;font-style:italic}
+  input{width:100%;padding:12px;margin:6px 0;background:#150e0a;border:1px solid #5a3d28;color:var(--paper);font:inherit;font-size:16px;text-align:center;border-radius:4px;text-transform:none;user-select:text;-webkit-user-select:text}
+  button{width:100%;padding:12px;margin-top:8px;background:var(--blood);color:#fff;border:0;border-radius:4px;font:inherit;font-size:18px;cursor:pointer;transition:transform .1s,filter .2s}
+  button:hover{filter:brightness(1.2);transform:scale(1.02)}
+  .code{font-size:34px;letter-spacing:8px;color:#ffd54f;margin:8px 0}
+  #err{color:#ff8a80;min-height:20px;margin-top:8px}
+  .hide{display:none!important}
+  #stick{position:fixed;left:24px;bottom:24px;width:120px;height:120px;border-radius:50%;border:2px solid rgba(232,217,181,.3);display:none}
+  #knob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:50%;background:rgba(232,217,181,.4)}
+  #btns{position:fixed;right:20px;bottom:24px;display:none;gap:12px}
+  #btns button{width:70px;height:70px;border-radius:50%;margin:0;font-size:14px;opacity:.7}
+  body.phone #stick{display:block}body.phone #btns{display:flex}body.phone #help{display:none}
+  html,body{touch-action:none}
+  #stick,#btns button{touch-action:none}
+  #gear{position:fixed;top:12px;right:12px;width:44px;height:44px;border-radius:50%;margin:0;padding:0;z-index:7;font-size:22px;background:#241912;border:1px solid #5a3d28}
+  #set{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,4,.92);z-index:9}
+  .seg{display:flex;gap:6px}
+  .seg button{margin:0;background:#150e0a;border:1px solid #5a3d28;font-size:15px;padding:10px 4px}
+  .seg button.on{background:var(--blood);border-color:var(--blood)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="vig" id="vig"></div>
+<div id="hud" class="hide"><div id="keys"></div><div id="pls"></div></div>
+<div id="msg"></div>
+<div id="help">WASD / Arrows move &middot; SHIFT sprint (loud!) &middot; E hide in wardrobes / revive friends</div>
+<button id="gear" aria-label="Ustawienia">&#9881;</button>
+<div id="set" class="hide"><div class="card">
+  <h1 style="font-size:28px">Ustawienia</h1>
+  <div class="sub">Tryb sterowania</div>
+  <div class="seg" id="segMode"><button data-m="auto">Auto</button><button data-m="pc">Komputer</button><button data-m="phone">Telefon</button></div>
+  <div class="sub" style="margin-top:14px">D&#378;wi&#281;k</div>
+  <div class="seg" id="segSnd"><button data-s="1">W&#322;.</button><button data-s="0">Wy&#322;.</button></div>
+  <button id="fs" style="background:#150e0a;border:1px solid #5a3d28;margin-top:14px">Pe&#322;ny ekran</button>
+  <button id="setClose">Zamknij</button>
+</div></div>
+<div id="stick"><div id="knob"></div></div>
+<div id="btns"><button id="bRun">RUN</button><button id="bAct">E</button></div>
+
+<div id="ov"><div class="card">
+  <div id="join">
+    <h1>GRANNY</h1><div class="sub">co-op escape &middot; up to 4 players</div>
+    <input id="name" placeholder="Your name" maxlength="12">
+    <input id="code" placeholder="Room code (blank = new room)" maxlength="6">
+    <button id="go">Enter the house</button>
+  </div>
+  <div id="lobby" class="hide">
+    <h1 id="ttl">LOBBY</h1><div class="sub">Share this code with friends</div>
+    <div class="code" id="rc"></div>
+    <div id="lp" style="margin:10px 0"></div>
+    <button id="start" class="hide">Start game</button>
+    <div id="wait" class="sub hide">Waiting for host to start...</div>
+  </div>
+  <div id="err"></div>
+</div></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('c'), ctx = cv.getContext('2d');
+const dark = document.createElement('canvas'), dx = dark.getContext('2d');
+const cfg = Object.assign({ mode: 'auto', sound: true }, JSON.parse(localStorage.getItem('gcfg') || '{}'));
+let Z = 1;
+function applyCfg() {
+  const phone = cfg.mode === 'phone' || (cfg.mode === 'auto' && matchMedia('(pointer:coarse)').matches);
+  document.body.classList.toggle('phone', phone);
+  Z = phone ? Math.max(.55, Math.min(.9, innerWidth / 1000)) : 1;
+  localStorage.setItem('gcfg', JSON.stringify(cfg));
+  document.querySelectorAll('#segMode button').forEach(b => b.classList.toggle('on', b.dataset.m === cfg.mode));
+  document.querySelectorAll('#segSnd button').forEach(b => b.classList.toggle('on', (b.dataset.s === '1') === cfg.sound));
+}
+function resize() { cv.width = dark.width = innerWidth; cv.height = dark.height = innerHeight; applyCfg(); }
+addEventListener('resize', resize); resize();
+$('gear').onclick = () => $('set').classList.remove('hide');
+$('setClose').onclick = () => $('set').classList.add('hide');
+document.querySelectorAll('#segMode button').forEach(b => b.onclick = () => { cfg.mode = b.dataset.m; applyCfg(); });
+document.querySelectorAll('#segSnd button').forEach(b => b.onclick = () => { cfg.sound = b.dataset.s === '1'; applyCfg(); });
+$('fs').onclick = () => { const d = document.documentElement; (document.fullscreenElement ? document.exitFullscreen() : (d.requestFullscreen && d.requestFullscreen())); };
+
+let ws, myId, map, S = null, pos = {}, gpos = null, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false;
+let actx, beat = 0, lastSt = '';
+$('name').value = localStorage.getItem('gname') || '';
+const p0 = new URLSearchParams(location.search).get('room'); if (p0) $('code').value = p0;
+
+function sfx(f, d, type = 'sine', v = 0.15) {
+  if (!cfg.sound) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = f; g.gain.value = v;
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime + d);
+    o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + d);
+  } catch {}
+}
+
+$('go').onclick = () => {
+  const name = $('name').value.trim() || 'Player'; localStorage.setItem('gname', name);
+  sfx(120, .3, 'sawtooth');
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', name, code: $('code').value }));
+  ws.onclose = () => { $('err').textContent = 'Disconnected. Refresh to rejoin.'; $('ov').classList.remove('hide'); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.t === 'err') { $('err').textContent = m.m; ws.close(); }
+    if (m.t === 'hello') { myId = m.id; map = m; $('join').classList.add('hide'); $('lobby').classList.remove('hide'); $('rc').textContent = m.code; $('err').textContent = ''; }
+    if (m.t === 's') onState(m);
+  };
+};
+$('start').onclick = () => ws.send(JSON.stringify({ t: 'start' }));
+
+function onState(m) {
+  S = m;
+  if (m.ev === 'key') { sfx(880, .15, 'triangle'); setTimeout(() => sfx(1320, .25, 'triangle'), 120); }
+  const playing = m.st === 'play';
+  $('ov').classList.toggle('hide', playing); $('hud').classList.toggle('hide', !playing);
+  if (!playing) {
+    $('ttl').textContent = m.st === 'won' ? 'YOU ESCAPED!' : m.st === 'lost' ? 'GAME OVER' : 'LOBBY';
+    $('lp').innerHTML = m.p.map(p => `<div><span style="color:${p.c}">&#9679;</span> ${esc(p.n)}${p.id === m.host ? ' &#128081;' : ''}</div>`).join('');
+    const host = m.host === myId;
+    $('start').classList.toggle('hide', !host); $('wait').classList.toggle('hide', host);
+    $('start').textContent = m.st === 'lobby' ? 'Start game' : 'Play again';
+  }
+  if (m.st !== lastSt && (m.st === 'won' || m.st === 'lost')) { sfx(m.st === 'won' ? 660 : 80, 1, m.st === 'won' ? 'triangle' : 'sawtooth', .25); }
+  lastSt = m.st;
+  $('keys').innerHTML = `&#128273; Keys ${m.keys}/${m.total}`;
+  $('pls').innerHTML = m.p.map(p => `<div class="pl ${p.d ? 'down' : ''}"><span class="dot" style="background:${p.c}"></span>${esc(p.n)}${p.d ? ' (down)' : p.h ? ' (hiding)' : ''}</div>`).join('');
+  $('msg').textContent = m.msg || '';
+}
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---- input ----
+addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') e.preventDefault(); });
+addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+const stick = $('stick'), knob = $('knob');
+function smove(e) {
+  const r = stick.getBoundingClientRect();
+  let x = (e.clientX - r.left - 60) / 60, y = (e.clientY - r.top - 60) / 60, m = Math.hypot(x, y);
+  if (m > 1) { x /= m; y /= m; }
+  touch = { x, y }; knob.style.left = 40 + x * 40 + 'px'; knob.style.top = 40 + y * 40 + 'px';
+}
+let sid = null;
+stick.addEventListener('pointerdown', e => { sid = e.pointerId; stick.setPointerCapture(sid); smove(e); e.preventDefault(); });
+stick.addEventListener('pointermove', e => { if (e.pointerId === sid) smove(e); });
+const send = e => { if (e.pointerId !== sid) return; sid = null; touch = { x: 0, y: 0 }; knob.style.left = knob.style.top = '40px'; };
+stick.addEventListener('pointerup', send); stick.addEventListener('pointercancel', send);
+for (const [id, set] of [['bRun', v => tRun = v], ['bAct', v => tAct = v]]) {
+  const el = $(id);
+  el.addEventListener('pointerdown', e => { set(true); e.preventDefault(); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, () => set(false)));
+}
+setInterval(() => {
+  if (!ws || ws.readyState !== 1 || !S || S.st !== 'play') return;
+  let x = (keys.d || keys.arrowright ? 1 : 0) - (keys.a || keys.arrowleft ? 1 : 0) + touch.x;
+  let y = (keys.s || keys.arrowdown ? 1 : 0) - (keys.w || keys.arrowup ? 1 : 0) + touch.y;
+  ws.send(JSON.stringify({ t: 'in', dx: x, dy: y, sp: keys.shift || tRun, a: keys.e || tAct }));
+}, 33);
+
+// ---- render ----
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  requestAnimationFrame(frame);
+  ctx.fillStyle = '#0a0604'; ctx.fillRect(0, 0, cv.width, cv.height);
+  if (!S || !map) return;
+  for (const p of S.p) {
+    const q = pos[p.id] || (pos[p.id] = { x: p.x, y: p.y });
+    q.x += (p.x - q.x) * Math.min(1, dt * 15); q.y += (p.y - q.y) * Math.min(1, dt * 15);
+  }
+  if (S.g) { gpos = gpos || { x: S.g.x, y: S.g.y }; gpos.x += (S.g.x - gpos.x) * Math.min(1, dt * 15); gpos.y += (S.g.y - gpos.y) * Math.min(1, dt * 15); }
+  const me = pos[myId], mine = S.p.find(p => p.id === myId);
+  if (!me) return;
+  const camX = me.x - cv.width / 2 / Z, camY = me.y - cv.height / 2 / Z;
+
+  ctx.save(); ctx.scale(Z, Z); ctx.translate(-camX, -camY);
+  // floor
+  ctx.fillStyle = '#3a2819'; ctx.fillRect(0, 0, map.W, map.H);
+  ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 2; ctx.beginPath();
+  for (let x = 0; x < map.W; x += 50) { ctx.moveTo(x, 0); ctx.lineTo(x, map.H); }
+  ctx.stroke();
+  // rooms tint
+  ctx.fillStyle = 'rgba(80,30,30,.18)'; ctx.fillRect(540, 20, 520, 960);
+  // exit
+  const open = S.keys >= S.total, ex = map.exit;
+  ctx.fillStyle = open ? 'rgba(76,175,80,.55)' : 'rgba(179,38,30,.45)'; ctx.fillRect(ex[0], ex[1], ex[2] - 20, ex[3]);
+  ctx.fillStyle = '#fff'; ctx.font = '14px Georgia'; ctx.fillText(open ? 'EXIT' : 'LOCKED', ex[0] + 8, ex[1] + 55);
+  // hides
+  for (const h of map.hides) { ctx.fillStyle = '#5d4037'; ctx.fillRect(h[0] - 18, h[1] - 24, 36, 48); ctx.strokeStyle = '#2b1b12'; ctx.strokeRect(h[0] - 18, h[1] - 24, 36, 48); ctx.beginPath(); ctx.moveTo(h[0], h[1] - 24); ctx.lineTo(h[0], h[1] + 24); ctx.stroke(); }
+  // keys
+  const tt = now / 300;
+  for (const k of S.it) {
+    ctx.shadowColor = '#ffd54f'; ctx.shadowBlur = 16 + Math.sin(tt) * 6;
+    ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(k.x, k.y - 3 + Math.sin(tt) * 2, 8, 0, 7); ctx.fill();
+    ctx.fillRect(k.x - 2, k.y + 4, 4, 12); ctx.shadowBlur = 0;
+  }
+  // walls
+  for (const w of map.walls) { ctx.fillStyle = '#1c130e'; ctx.fillRect(w[0], w[1], w[2], w[3]); ctx.strokeStyle = '#6d4c33'; ctx.lineWidth = 2; ctx.strokeRect(w[0], w[1], w[2], w[3]); }
+  // players
+  for (const p of S.p) {
+    const q = pos[p.id]; if (p.h && p.id !== myId) continue;
+    ctx.globalAlpha = p.h ? .4 : 1;
+    ctx.fillStyle = p.d ? '#555' : p.c; ctx.beginPath(); ctx.arc(q.x, q.y, 12, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fff'; ctx.font = '12px Georgia'; ctx.textAlign = 'center'; ctx.fillText(p.n + (p.d ? ' \u2620' : ''), q.x, q.y - 20);
+    if (p.d && p.rv > 0) { ctx.fillStyle = '#4caf50'; ctx.fillRect(q.x - 18, q.y + 18, 36 * p.rv / 3, 5); ctx.strokeStyle = '#fff'; ctx.strokeRect(q.x - 18, q.y + 18, 36, 5); }
+  }
+  // granny
+  if (gpos) {
+    const chase = S.g.m === 'chase';
+    ctx.shadowColor = chase ? '#f00' : '#000'; ctx.shadowBlur = chase ? 20 : 0;
+    ctx.fillStyle = '#9e9e9e'; ctx.beginPath(); ctx.arc(gpos.x, gpos.y, 16, 0, 7); ctx.fill();
+    ctx.fillStyle = '#6a1b9a'; ctx.beginPath(); ctx.arc(gpos.x, gpos.y + 4, 13, 0.2, Math.PI - 0.2); ctx.fill();
+    ctx.shadowBlur = 0; ctx.fillStyle = chase ? '#f44336' : '#fff';
+    ctx.fillRect(gpos.x - 7, gpos.y - 5, 4, 4); ctx.fillRect(gpos.x + 3, gpos.y - 5, 4, 4);
+    ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(gpos.x + 14, gpos.y + 8); ctx.lineTo(gpos.x + 26, gpos.y - 12); ctx.stroke();
+  }
+  ctx.restore();
+
+  // darkness + flashlights
+  dx.globalCompositeOperation = 'source-over'; dx.clearRect(0, 0, dark.width, dark.height);
+  dx.fillStyle = 'rgba(0,0,0,.965)'; dx.fillRect(0, 0, dark.width, dark.height);
+  dx.globalCompositeOperation = 'destination-out';
+  for (const p of S.p) {
+    if (p.d) continue; const q = pos[p.id], R = (p.id === myId ? 250 : 130) * Z, sx = (q.x - camX) * Z, sy = (q.y - camY) * Z;
+    const g = dx.createRadialGradient(sx, sy, 10, sx, sy, R);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    dx.fillStyle = g; dx.beginPath(); dx.arc(sx, sy, R, 0, 7); dx.fill();
+  }
+  ctx.drawImage(dark, 0, 0);
+
+  // heartbeat + danger vignette
+  if (gpos && mine && !mine.d) {
+    const d = Math.hypot(gpos.x - me.x, gpos.y - me.y);
+    $('vig').classList.toggle('danger', d < 260);
+    beat -= dt;
+    if (d < 450 && beat <= 0) { sfx(55, .2, 'sine', .4); setTimeout(() => sfx(50, .2, 'sine', .3), 150); beat = 0.3 + d / 500; }
+  }
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
