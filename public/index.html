@@ -48,6 +48,7 @@
   #ci{margin-top:6px;padding:8px;font-size:14px;background:rgba(21,14,10,.85);text-align:left}
   #cbtn{position:fixed;top:12px;right:64px;width:44px;height:44px;border-radius:50%;margin:0;padding:0;z-index:10;font-size:20px;background:#241912;border:1px solid #5a3d28}
   #pad{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(10,6,4,.92);z-index:11}#pin{font-size:34px;letter-spacing:12px}
+  #note{position:fixed;top:28%;left:50%;transform:translateX(-50%) rotate(-2deg);padding:14px 22px;background:#efe6c8;color:#3b2a1a;font-size:26px;letter-spacing:4px;border:2px solid #8d6e63;box-shadow:0 0 30px #000;pointer-events:none;z-index:6}
 </style>
 </head>
 <body>
@@ -55,8 +56,8 @@
 <div class="vig" id="vig"></div>
 <canvas id="mm" width="144" height="90" class="hide"></canvas>
 <div id="hud" class="hide"><div id="keys"></div><div id="pls"></div></div>
-<div id="msg"></div><div id="hint"></div>
-<div id="help">WASD move &middot; mouse look (click to capture) &middot; SHIFT sprint (loud!) &middot; E hide in wardrobe / revive friends &middot; ENTER chat &middot; F crossbow</div>
+<div id="note" class="hide"></div><div id="msg"></div><div id="hint"></div>
+<div id="help">WASD move &middot; mouse look (click to capture) &middot; SHIFT sprint (loud!) &middot; E hide in wardrobe / revive friends &middot; ENTER chat &middot; F shoot crossbow &middot; G drop item &middot; E pick up</div>
 <button id="gear" aria-label="Ustawienia">&#9881;</button>
 <div id="set" class="hide"><div class="card">
   <h1 style="font-size:28px">Ustawienia</h1>
@@ -70,7 +71,7 @@
 <div id="chat"><div id="log"></div><input id="ci" class="hide" maxlength="120" placeholder="Message (Enter = send, Esc = close)" autocomplete="off"></div>
 <button id="cbtn" aria-label="Chat">&#128172;</button>
 <div id="stick"><div id="knob"></div></div>
-<div id="btns"><button id="bRun">RUN</button><button id="bAct">E</button><button id="bSh">&#127993;</button></div>
+<div id="btns"><button id="bRun">RUN</button><button id="bAct">E</button><button id="bSh">&#127993;</button><button id="bDr">G</button></div>
 
 <div id="ov"><div class="card">
   <div id="join">
@@ -95,7 +96,7 @@
 const $ = id => document.getElementById(id), U = 50; // 50 px of server map = 1 3D unit
 const cvs = $('c');
 const cfg = Object.assign({ mode: 'auto', sound: true }, JSON.parse(localStorage.getItem('gcfg') || '{}'));
-let ws, myId, map, S = null, pos = {}, gpos = null, gface = 0, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false, tSh = false;
+let ws, myId, map, S = null, pos = {}, gpos = null, gface = 0, keys = {}, touch = { x: 0, y: 0 }, tAct = false, tRun = false, tSh = false, tDr = false;
 let yaw = -Math.PI / 2, pitch = 0, actx, beat = 0, lastSt = '', built = false;
 $('name').value = localStorage.getItem('gname') || '';
 const p0 = new URLSearchParams(location.search).get('room'); if (p0) $('code').value = p0;
@@ -144,21 +145,22 @@ const FD = {
   carpet: g => { g.fillStyle = '#4a1f2a'; g.fillRect(0, 0, 64, 64); spk(g, '#3b1720', '#5a2a36', 300); },
   conc: g => { g.fillStyle = '#34363a'; g.fillRect(0, 0, 64, 64); spk(g, '#2a2c30', '#44474c', 200); }
 };
-const PROPS = [[0xb0bec5,270,45,360,50,1],[0xeceff1,470,55,60,60,2.3],[0x6d4c41,260,250,140,90,.9],[0xf5f5f5,110,900,150,90,.7],[0xfafafa,440,950,45,55,.7],[0xe0e0e0,440,545,60,30,.9],
-  [0x37474f,640,330,50,170,.7],[0x5d4037,800,600,120,70,.5],[0x5d4a6a,1500,400,150,110,.6],[0x3e2723,1565,720,30,220,2.2],[0x5d4037,1130,940,50,50,1],[0x5d4037,1190,950,50,50,1]];
+const PROPS = [[0xeceff1,470,55,60,60,2.3],[0x6d4c41,260,250,140,90,.9],[0xf5f5f5,360,930,160,90,.7],[0xfafafa,470,610,45,55,.7],[0xe0e0e0,440,545,60,30,.9],
+  [0x37474f,640,330,50,170,.7],[0x5d4037,800,600,120,70,.5],[0x5d4a6a,1500,350,150,110,.6],[0x3e2723,1565,720,30,220,2.2],[0x5d4037,1130,940,50,50,1],[0x5d4037,1190,950,50,50,1]];
 const objs = {};
-function mkCab() { const g = new THREE.Group(), p = new THREE.Group(); p.position.set(-.55, .55, .25);
+function mkCab() { const g = new THREE.Group(), p = new THREE.Group(), c = 0x5a4128; p.position.set(-.55, .55, .25);
   p.add(bx(1.06, 1, .05, 0x8a6a44, .53, 0, .02), bx(.08, .08, .08, 0xffd54f, .9, 0, .08, gold));
-  g.add(bx(1.1, 1.1, .5, 0x5a4128, 0, .55, 0), p); g.userData.piv = p; return g; }
+  g.add(bx(1.1, 1.1, .04, c, 0, .55, -.23), bx(.04, 1.1, .5, c, -.53, .55, 0), bx(.04, 1.1, .5, c, .53, .55, 0), bx(1.1, .04, .5, c, 0, 1.1, 0), bx(1.1, .04, .5, c, 0, .02, 0), bx(1, .03, .45, 0x3b2a18, 0, .6, 0), p);
+  g.userData.piv = p; return g; }
 function mkWard() { const g = new THREE.Group();
   g.add(bx(1.2, 2.4, .7, 0x4e342e, 0, 1.2, 0), bx(1.3, .12, .8, 0x3e2723, 0, 2.46, 0), bx(.03, 2.1, .05, 0x2b1a12, 0, 1.2, .36));
   for (const s of [-1, 1]) g.add(bx(.54, 2.1, .04, 0x6d4c41, s * .29, 1.2, .36), bx(.04, .3, .06, 0xffd54f, s * .08, 1.2, .4, gold)); return g; }
-function mkCase() { const g = new THREE.Group(), gl = bx(1, 1.1, .7, 0x88ccff, 0, 1.5, 0, { transparent: true, opacity: .28 });
-  g.add(bx(1, .95, .7, 0x3e2723, 0, .47, 0), gl, bx(.8, .08, .08, 0x222222, 0, 1.4, 0), bx(.08, .08, .6, 0x5d4037, 0, 1.4, 0), bx(.7, .05, .05, 0x222222, 0, 1.5, .2));
-  g.userData.glass = gl; return g; }
-function mkSafe() { const g = new THREE.Group(), p = new THREE.Group(); p.position.set(-.5, .55, .4);
+function mkCase() { const g = new THREE.Group(), gl = bx(1, 1.1, .7, 0x88ccff, 0, 1.5, 0, { transparent: true, opacity: .28 }), d = mkItem('xbow'); d.position.set(0, 1.05, 0);
+  g.add(bx(1, .95, .7, 0x3e2723, 0, .47, 0), gl, d); g.userData.glass = gl; g.userData.deco = d; return g; }
+function mkSafe() { const g = new THREE.Group(), p = new THREE.Group(), c = 0x37474f; p.position.set(-.5, .55, .4);
   p.add(bx(1, 1, .08, 0x607d8b, .5, 0, 0), bx(.2, .2, .1, 0xb0bec5, .5, 0, .07));
-  g.add(bx(1.1, 1.1, .8, 0x37474f, 0, .55, 0), p); g.userData.piv = p; return g; }
+  g.add(bx(1.1, 1.1, .06, c, 0, .55, -.37), bx(.06, 1.1, .8, c, -.52, .55, 0), bx(.06, 1.1, .8, c, .52, .55, 0), bx(1.1, .06, .8, c, 0, 1.1, 0), bx(1.1, .06, .8, c, 0, .03, 0), p);
+  g.userData.piv = p; return g; }
 function mkFuse() { const g = new THREE.Group(), w = new THREE.Group();
   w.add(bx(.04, .6, .04, 0xd32f2f, -.12, .8, .12), bx(.04, .6, .04, 0x1976d2, .12, .8, .12));
   g.add(bx(.5, .7, .18, 0x546e7a, 0, 1.3, 0), bx(.5, .1, .19, 0xfbc02d, 0, 1.55, 0), w); g.userData.wires = w; return g; }
@@ -168,8 +170,10 @@ function mkFront() { const g = new THREE.Group();
   sparkMat = new THREE.MeshBasicMaterial({ color: 0x66ccff, transparent: true, opacity: 0 });
   const sp = new THREE.Mesh(new THREE.BoxGeometry(1.9, 2.8, .02), sparkMat); sp.position.set(0, 1.45, -.22);
   g.add(bx(2, 2.9, .4, 0x5d3a1a, 0, 1.45, 0), bx(.12, .12, .12, 0xffd54f, .7, 1.4, -.25, gold), sp); return g; }
-const HT = { cab: 'open', case: 'smash glass (needs hammer)', pad: 'enter padlock code', safe: 'open safe (needs safe key)', fuse: 'cut cables (needs pliers)', front: 'open the front door' };
+const HT = { cab: 'open', case: 'smash glass (hold a hammer)', pad: 'enter padlock code', safe: 'open safe (hold the safe key)', fuse: 'cut cables (hold pliers)', front: 'open the door (hold the master key)' };
 function hintT(me) {
+  const gi = (S.gi || []).find(i => Math.hypot(i.x - me.x, i.y - me.y) < 60);
+  if (gi) return gi.k === 'bolt' ? 'load bolt (hold the crossbow)' : 'pick up ' + ({ safekey: 'safe key', xbow: 'crossbow', master: 'MASTER KEY' }[gi.k] || gi.k);
   const dr = S.dr || {}, o = S.o || [], t = map.ints.find(t => Math.hypot(t.x - me.x, t.y - me.y) < 60); if (!t) return '';
   const done = t.k === 'pad' ? dr.base : t.k === 'fuse' ? !S.w : t.k === 'front' ? dr.front : o.includes(t.id);
   return done ? '' : HT[t.k];
@@ -179,22 +183,64 @@ function updObjs() {
   for (const id in objs) {
     const { g, t } = objs[id];
     if (t.k === 'cab' || t.k === 'safe') g.userData.piv.rotation.y = o.includes(id) ? -1.7 : 0;
-    else if (t.k === 'case') g.userData.glass.visible = !o.includes('case');
+    else if (t.k === 'case') g.userData.glass.visible = g.userData.deco.visible = !o.includes('case');
     else if (t.k === 'pad') g.visible = !dr.base;
     else if (t.k === 'front') g.visible = !dr.front;
     else if (t.k === 'fuse') g.userData.wires.visible = !!S.w;
   }
 }
+function floorY(x, y) {
+  if (x > 1080 && y > 520) { if (x < 1280 && y >= 600 && y <= 720) return -Math.min(8, Math.floor((x - 1080) / 25) + 1) * 0.325; return -2.6; }
+  return 0;
+}
+function mkItem(k) {
+  const g = new THREE.Group(), st = { emissive: 0x886600 };
+  if (k === 'hammer') g.add(bx(.05, .05, .4, 0x6d4c2f, 0, 0, 0), bx(.1, .1, .18, 0x555555, 0, 0, -.2));
+  else if (k === 'pliers') g.add(bx(.04, .03, .3, 0xc62828, -.025, 0, .08), bx(.04, .03, .3, 0xc62828, .025, 0, .08), bx(.07, .04, .14, 0x90a4ae, 0, 0, -.12));
+  else if (k === 'safekey' || k === 'master') {
+    const m = k === 'master', c = m ? 0xffd54f : 0xb0bec5, o = m ? st : {}, ring = new THREE.Mesh(new THREE.TorusGeometry(.06, .015, 6, 12), std(c, o));
+    ring.position.z = .17; g.add(ring, bx(.02, .02, .3, c, 0, 0, 0, o), bx(.05, .02, .04, c, 0, 0, -.13, o)); if (m) g.scale.setScalar(1.4);
+  }
+  else if (k === 'xbow') { g.add(bx(.06, .06, .5, 0x5d4037, 0, 0, 0), bx(.55, .03, .05, 0x333333, 0, 0, -.2), bx(.5, .008, .008, 0xdddddd, 0, 0, -.17)); const b = bx(.015, .015, .35, 0x999999, 0, .045, -.05); g.add(b); g.userData.bolt = b; }
+  else if (k === 'bolt') g.add(bx(.02, .02, .35, 0x999999, 0, 0, 0), bx(.04, .04, .06, 0xb71c1c, 0, 0, -.2));
+  else g.add(bx(.22, .01, .3, 0xefe6c8, 0, 0, 0), bx(.15, .012, .01, 0x555555, 0, .005, -.05), bx(.15, .012, .01, 0x555555, 0, .005, .02));
+  return g;
+}
+let heldK = null, heldM = null;
+function setHeld(k, ammo) {
+  if (k !== heldK) {
+    if (heldM) cam.remove(heldM);
+    heldK = k; heldM = k ? mkItem(k) : null;
+    if (heldM) { heldM.position.set(.28, -.26, -.65); if (k === 'note') heldM.rotation.x = Math.PI / 2.3; else heldM.rotation.y = .25; cam.add(heldM); }
+  }
+  if (heldM && heldM.userData.bolt) heldM.userData.bolt.visible = ammo > 0;
+}
+const gM = {};
+function syncGI() {
+  const ids = new Set();
+  for (const it of S.gi || []) {
+    ids.add(it.id);
+    const m = gM[it.id] || (gM[it.id] = mkItem(it.k)); if (!m.parent) scene.add(m);
+    m.position.set(it.x / U, floorY(it.x, it.y) + (it.h === 2 ? 1.05 : it.h ? .62 : .08), it.y / U);
+    if (m.userData.bolt) m.userData.bolt.visible = it.a > 0;
+    m.rotation.y = it.id * 1.7;
+  }
+  for (const id in gM) if (!ids.has(+id)) { scene.remove(gM[id]); delete gM[id]; }
+}
+const faceA = (x, y) => {
+  const e = ROOMS.find(e => x >= e[1][0] - 30 && x <= e[1][0] + e[1][2] + 30 && y >= e[1][1] - 30 && y <= e[1][1] + e[1][3] + 30), r = e ? e[1] : [0, 0, map.W, map.H];
+  const d = [x - r[0], r[0] + r[2] - x, y - r[1], r[1] + r[3] - y]; return [Math.PI / 2, -Math.PI / 2, 0, Math.PI][d.indexOf(Math.min(...d))];
+};
 function buildWorld() {
-  built = true; const mw = map.W / U, mh = map.H / U, face = (x, y) => Math.atan2(mw / 2 - x / U, mh / 2 - y / U);
-  const fl = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), std(0xffffff, { map: floorT }));
-  fl.rotation.x = -Math.PI / 2; fl.position.set(mw / 2, -0.01, mh / 2); scene.add(fl);
-  const ce = new THREE.Mesh(fl.geometry, std(0x1a120d)); ce.rotation.x = Math.PI / 2; ce.position.set(mw / 2, 3, mh / 2); scene.add(ce);
+  built = true; const mw = map.W / U, mh = map.H / U, bm = std(0xffffff, { map: floorT });
+  const slab = (x, z, w, d) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), bm); m.rotation.x = -Math.PI / 2; m.position.set(x + w / 2, -0.01, z + d / 2); scene.add(m); };
+  slab(0, 0, 1080 / U, mh); slab(1080 / U, 0, 520 / U, 520 / U);
+  const ce = new THREE.Mesh(new THREE.PlaneGeometry(mw, mh), std(0x1a120d)); ce.rotation.x = Math.PI / 2; ce.position.set(mw / 2, 3, mh / 2); scene.add(ce);
   for (const [n, r, k] of ROOMS) {
-    const w = r[2] / U, hh = r[3] / U, sz = k === 'wood' ? 128 : 64, cx = (r[0] + r[2] / 2) / U, cz = (r[1] + r[3] / 2) / U;
+    const w = r[2] / U, hh = r[3] / U, sz = k === 'wood' ? 128 : 64, cx = (r[0] + r[2] / 2) / U, cz = (r[1] + r[3] / 2) / U, fy = n === 'BASEMENT' ? -2.6 : 0;
     const f = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), std(0xffffff, { map: tex(sz, sz, FD[k], w / 2, hh / 2) }));
-    f.rotation.x = -Math.PI / 2; f.position.set(cx, 0, cz); scene.add(f);
-    const s = label(n); s.scale.set(4, 1, 1); s.position.set(cx, 2.6, cz); scene.add(s);
+    f.rotation.x = -Math.PI / 2; f.position.set(cx, fy, cz); scene.add(f);
+    const s = label(n); s.scale.set(4, 1, 1); s.position.set(cx, fy + 2.6, cz); scene.add(s);
   }
   const wm = std(0xffffff, { map: wallT });
   for (const w of map.walls) {
@@ -202,20 +248,22 @@ function buildWorld() {
     const sc = [[sz, 3], [sz, 3], [sx, sz], [sx, sz], [sx, 3], [sx, 3]];
     for (let i = 0; i < uv.count; i++) { const s = sc[i >> 2]; uv.setXY(i, uv.getX(i) * s[0] / 3, uv.getY(i) * s[1] / 3); }
     const m = new THREE.Mesh(g, wm); m.position.set((w[0] + w[2] / 2) / U, 1.5, (w[1] + w[3] / 2) / U); scene.add(m);
+    if (w[0] + w[2] > 1060 && w[1] + w[3] > 500) scene.add(bx(sx, 2.6, sz, 0x2b2b2e, (w[0] + w[2] / 2) / U, -1.3, (w[1] + w[3] / 2) / U));
   }
-  for (const p of PROPS) scene.add(bx(p[3] / U, p[5], p[4] / U, p[0], p[1] / U, p[5] / 2, p[2] / U));
-  for (const h of map.hides) { const g = mkWard(); g.position.set(h[0] / U, 0, h[1] / U); g.rotation.y = face(h[0], h[1]); scene.add(g); }
+  for (let i = 0; i < 7; i++) { const ty = -(i + 1) * 0.325; scene.add(bx(.5, ty + 2.6, 2.4, 0x555555, (1080 + i * 25 + 12.5) / U, (ty - 2.6) / 2, 660 / U)); }
+  for (const p of PROPS) scene.add(bx(p[3] / U, p[5], p[4] / U, p[0], p[1] / U, p[5] / 2 + floorY(p[1], p[2]), p[2] / U));
+  for (const h of map.hides) { const g = mkWard(); g.position.set(h[0] / U, floorY(h[0], h[1]), h[1] / U); g.rotation.y = faceA(h[0], h[1]); scene.add(g); }
   const mk = { cab: mkCab, case: mkCase, safe: mkSafe, fuse: mkFuse, pad: mkPad, front: mkFront };
   for (const t of map.ints) {
-    const g = mk[t.k](); g.position.set(t.x / U, 0, (t.k === 'front' ? 990 : t.y) / U);
-    if (t.k !== 'pad' && t.k !== 'front') g.rotation.y = face(t.x, t.y);
+    const g = mk[t.k](); g.position.set(t.x / U, floorY(t.x, t.y), (t.k === 'front' ? 990 : t.y) / U);
+    if (t.k !== 'pad' && t.k !== 'front') g.rotation.y = faceA(t.x, t.y);
     scene.add(g); objs[t.id] = { g, t };
   }
   exitMat = new THREE.MeshBasicMaterial({ color: 0x66ff99, transparent: true, opacity: 0.35, fog: false, depthWrite: false });
   const eb = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 1), exitMat); eb.position.set(790 / U, 1.5, 20.6); scene.add(eb);
   gm = mkGranny(); scene.add(gm);
 }
-let exitMat, gm, gEyes, gGlow, sparkMat;
+let exitMat, gm, gEyes, gGlow, sparkMat, camY = 1.6;
 function mkGranny() {
   const g = new THREE.Group();
   const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 1.2, 10), std(0x6a1b9a)); dress.position.y = 0.6;
@@ -288,7 +336,7 @@ $('start').onclick = () => { yaw = -Math.PI / 2; pitch = 0; ws.send(JSON.stringi
 const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function onState(m) {
-  S = m; syncKeys();
+  S = m; syncKeys(); syncGI();
   updObjs();
   if (m.ev === 'shot') sfx(200, .15, 'square', .2);
   if (m.ev === 'hit') { sfx(150, .3, 'sawtooth', .25); sfx(500, .2, 'square', .15); }
@@ -305,9 +353,10 @@ function onState(m) {
   }
   if (m.st !== lastSt && (m.st === 'won' || m.st === 'lost')) sfx(m.st === 'won' ? 660 : 80, 1, m.st === 'won' ? 'triangle' : 'sawtooth', .25);
   lastSt = m.st;
-  const I = m.inv || {};
-  $('keys').innerHTML = [I.code ? '&#128221; Code ' + I.code : '', I.pliers ? '&#9986; Pliers' : '', I.hammer ? '&#128296; Hammer' : '', I.safekey ? '&#128477; Safe key' : '',
-    I.xbow || I.bolts ? '&#127993; ' + (I.xbow ? 'Crossbow ' : '') + 'bolts x' + (I.bolts || 0) : '', I.master ? '&#128273; MASTER KEY' : ''].filter(Boolean).join(' &middot; ') || 'Search cabinets with E';
+  const mn = m.p.find(p => p.id === myId) || {};
+  const NM = { note: '&#128221; Note', pliers: '&#9986; Pliers', hammer: '&#128296; Hammer', safekey: '&#128477; Safe key', xbow: '&#127993; Crossbow', master: '&#128273; MASTER KEY' };
+  $('keys').innerHTML = mn.hd ? '&#9995; ' + NM[mn.hd] + (mn.hd === 'xbow' ? ' (' + mn.ha + ' bolts)' : '') + ' &middot; G = drop' : '&#9995; Hands empty';
+  $('note').classList.toggle('hide', !(playing && mn.hd === 'note')); $('note').textContent = 'PADLOCK CODE ' + (m.nc || '');
   $('pls').innerHTML = m.p.map(p => `<div class="pl ${p.d ? 'down' : ''}"><span class="dot" style="background:${p.c}"></span>${esc(p.n)}${p.d ? ' (down ' + Math.round(p.rv / 3 * 100) + '%)' : p.h ? ' (hiding)' : ''}</div>`).join('');
   $('msg').textContent = m.msg || '';
 }
@@ -338,7 +387,7 @@ stick.addEventListener('pointerdown', e => { sid = e.pointerId; stick.setPointer
 stick.addEventListener('pointermove', e => { if (e.pointerId === sid) smove(e); });
 const send = e => { if (e.pointerId !== sid) return; sid = null; touch = { x: 0, y: 0 }; knob.style.left = knob.style.top = '40px'; };
 stick.addEventListener('pointerup', send); stick.addEventListener('pointercancel', send);
-for (const [id, set] of [['bRun', v => tRun = v], ['bAct', v => tAct = v], ['bSh', v => tSh = v]]) {
+for (const [id, set] of [['bRun', v => tRun = v], ['bAct', v => tAct = v], ['bSh', v => tSh = v], ['bDr', v => tDr = v]]) {
   const el = $(id);
   el.addEventListener('pointerdown', e => { set(true); e.preventDefault(); });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, () => set(false)));
@@ -347,7 +396,7 @@ setInterval(() => {
   if (!ws || ws.readyState !== 1 || !S || S.st !== 'play') return;
   const f = (keys.w || keys.arrowup ? 1 : 0) - (keys.s || keys.arrowdown ? 1 : 0) - touch.y;
   const s = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + touch.x, sy = Math.sin(yaw), cy = Math.cos(yaw);
-  ws.send(JSON.stringify({ t: 'in', dx: s * cy - f * sy, dy: -s * sy - f * cy, sp: keys.shift || tRun, a: keys.e || tAct, sh: keys.f || tSh, yw: yaw }));
+  ws.send(JSON.stringify({ t: 'in', dx: s * cy - f * sy, dy: -s * sy - f * cy, sp: keys.shift || tRun, a: keys.e || tAct, sh: keys.f || tSh, g: keys.g || tDr, yw: yaw }));
 }, 33);
 
 // ---------- chat ----------
@@ -407,18 +456,25 @@ function frame(now) {
   }
   const me = pos[myId], mine = S.p.find(p => p.id === myId); if (!me || !mine) return;
   if (keys.arrowleft) yaw += 2.2 * dt; if (keys.arrowright) yaw -= 2.2 * dt;
-  cam.position.set(me.x / U, mine.d ? 0.35 : mine.h ? 1.1 : 1.6, me.y / U);
+  const ty = floorY(me.x, me.y) + (mine.d ? 0.35 : mine.h ? 1.1 : 1.6); camY += (ty - camY) * Math.min(1, dt * 12);
+  cam.position.set(me.x / U, camY, me.y / U);
   cam.rotation.set(mine.d ? -0.5 : pitch, yaw, mine.d ? 0.4 : 0);
+  setHeld(mine.hd || null, mine.ha || 0); if (heldM) heldM.visible = !mine.d;
 
   for (const p of S.p) {
     if (p.id === myId) continue;
     const g = pm[p.id] || (pm[p.id] = mkPlayer(p)), q = pos[p.id];
-    g.visible = !p.h; g.position.set(q.x / U, p.d ? 0.25 : 0, q.y / U); g.rotation.x = p.d ? -Math.PI / 2 : 0;
+    g.visible = !p.h; g.position.set(q.x / U, floorY(q.x, q.y) + (p.d ? 0.25 : 0), q.y / U); g.rotation.x = p.d ? -Math.PI / 2 : 0;
+    if (g.userData.hk !== (p.hd || null)) {
+      if (g.userData.hm) g.remove(g.userData.hm);
+      g.userData.hk = p.hd || null; g.userData.hm = null;
+      if (p.hd) { const m = mkItem(p.hd); m.position.set(.3, .95, .3); m.scale.setScalar(.8); g.add(m); g.userData.hm = m; }
+    }
   }
   for (const id in pm) if (!S.p.some(p => p.id === id)) { scene.remove(pm[id]); delete pm[id]; }
   if (gpos) {
     const chase = S.g.m === 'chase' && !S.g.a; gm.visible = !S.g.a;
-    gm.position.set(gpos.x / U, 0, gpos.y / U); gm.rotation.y = gface;
+    gm.position.set(gpos.x / U, floorY(gpos.x, gpos.y), gpos.y / U); gm.rotation.y = gface;
     gEyes.color.set(chase ? 0xff1010 : 0xffffff); gGlow.intensity = chase ? 1.6 : 0;
   }
   for (const id in kM) { kM[id].rotation.y += dt * 2; kM[id].position.y = 1 + Math.sin(now / 300) * 0.08; }
